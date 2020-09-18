@@ -3,17 +3,16 @@ package config
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
-	"github.com/Azure/go-autorest/autorest"
 	"github.com/joho/godotenv"
+
+	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/go-autorest/autorest/azure/auth"
 )
 
 // Allows a single line pattern that would emulate (condition ? true : false).
@@ -24,44 +23,44 @@ func IfThenElse(condition bool, a interface{}, b interface{}) interface{} {
 	return b
 }
 
-type AccessTokenEntry struct {
-	AccessToken string `json:"accessToken"`
+type authMode int
+
+const (
+	AuthMode_Env authMode = iota
+	AuthMode_Cli
+)
+
+type preconfig struct {
+	AUTH_MODE   authMode
+	APPCONFIG   string
+	CONFIG_KEYS []string
 }
 
-func GetAccessToken(ctx context.Context, resource string) (accessToken string, err error) {
+var config preconfig
 
-	// execute the command and get the output
-	cmd := exec.CommandContext(ctx, "az", "account", "get-access-token", "--resource", resource)
-	var content []byte
-	content, err = cmd.Output()
-	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
-			err = errors.New(string(ee.Stderr))
-		}
+func applyAuthorizer(client *autorest.Client, resource string) (err error) {
+
+	// select
+	var authorizer autorest.Authorizer
+	switch config.AUTH_MODE {
+	case AuthMode_Env:
+		authorizer, err = auth.NewAuthorizerFromEnvironmentWithResource(resource)
+	case AuthMode_Cli:
+		authorizer, err = auth.NewAuthorizerFromCLIWithResource(resource)
+	default:
+		err = fmt.Errorf("there is no authorizer specified.")
 		return
 	}
 
-	// deserialize
-	var entry AccessTokenEntry
-	err = json.Unmarshal(content, &entry)
+	// check for errors
 	if err != nil {
 		return
 	}
 
-	// check for an accessToken
-	// NOTE: this probably won't happen because cmd.Output() will probably throw a non-zero code
-	if len(entry.AccessToken) < 1 {
-		err = fmt.Errorf("the access token could not be obtained from az-cli - %s", content)
-	}
+	// assign
+	client.Authorizer = authorizer
 
-	// return the accessToken
-	accessToken = entry.AccessToken
 	return
-
-}
-
-func GetAccessTokenForManagement(ctx context.Context) (string, error) {
-	return GetAccessToken(ctx, "https://management.core.windows.net/")
 }
 
 func tryExtractUrlForKeyvaultFromAppConfigEntry(value string) string {
@@ -96,29 +95,32 @@ func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (va
 		return
 	}
 
-	// TODO: can context apply to autorest somehow?
-
-	// get an access token
-	// NOTE: this cannot end in a slash
-	token, err := GetAccessToken(ctx, "https://pelasne-config.azconfig.io")
-	if err != nil {
+	// make sure APPCONFIG is supplied so the load can happen
+	if len(config.APPCONFIG) < 1 {
+		err = fmt.Errorf("APPCONFIG was REQUIRED but not set.")
 		return
 	}
+
+	// TODO: can context apply to autorest somehow?
 
 	// request each filter
 	for _, filter := range filters {
 
-		// setup the request
+		// create/authorize the client
 		client := &autorest.Client{}
+		err = applyAuthorizer(client, config.APPCONFIG)
+		if err != nil {
+			return
+		}
+
+		// setup the request
 		q := map[string]interface{}{"key": filter}
-		h := map[string]interface{}{"Authorization": "Bearer " + token}
 		var req *http.Request
 		req, err = autorest.Prepare(&http.Request{},
 			autorest.AsGet(),
-			autorest.WithBaseURL("https://pelasne-config.azconfig.io"),
+			autorest.WithBaseURL(config.APPCONFIG),
 			autorest.WithPath("/kv"),
-			autorest.WithQueryParameters(q),
-			autorest.WithHeaders(h))
+			autorest.WithQueryParameters(q))
 		if err != nil {
 			return
 		}
@@ -213,23 +215,20 @@ func resolve(ctx context.Context, url string) (val string, err error) {
 
 	// TODO: can context apply to autorest somehow?
 
-	// get an access token
-	// NOTE: this cannot end in a slash
-	token, err := GetAccessToken(ctx, "https://vault.azure.net")
+	// create/authorize the client
+	client := &autorest.Client{}
+	err = applyAuthorizer(client, "https://vault.azure.net")
 	if err != nil {
 		return
 	}
 
 	// setup the request
-	client := &autorest.Client{}
 	q := map[string]interface{}{"api-version": "7.0"}
-	h := map[string]interface{}{"Authorization": "Bearer " + token}
 	var req *http.Request
 	req, err = autorest.Prepare(&http.Request{},
 		autorest.AsGet(),
 		autorest.WithBaseURL(url),
-		autorest.WithQueryParameters(q),
-		autorest.WithHeaders(h))
+		autorest.WithQueryParameters(q))
 	if err != nil {
 		return
 	}
@@ -281,21 +280,50 @@ func ResolveAll(ctx context.Context, list []*StringChain) *sync.WaitGroup {
 	return wg
 }
 
-func main() {
-	ctx := context.Background()
-	// TODO: learn more about context
+func Startup(ctx context.Context) (err error) {
 
-	// load the config
-	err := godotenv.Load()
+	// load from dotenv
+	//  NOTE: ignore *os.PathError (the file is optional)
+	err = godotenv.Load()
 	if err != nil {
-		log.Fatal("error loading .env file")
+		if _, ok := err.(*os.PathError); !ok {
+			return err
+		} else {
+			err = nil
+		}
 	}
 
-	err = Apply(ctx, []string{"override:*", "sample:*"})
-	if err != nil {
-		panic(err)
+	// do pre-configuration
+	fmt.Println("PRE-CONFIGURATION:")
+	table := map[string]int{
+		"env": int(AuthMode_Env),
+		"cli": int(AuthMode_Cli),
+	}
+	config.AUTH_MODE = authMode(AsInt().TrySetByEnv("AUTH_MODE").Lookup(table).DefaultTo(0).PrintLookup(table).Value())
+	config.APPCONFIG = AsString().TrySetByEnv("APPCONFIG").Transform(func(chain *StringChain) {
+		if chain.IsSet() {
+			val := strings.ToLower(chain.Value())
+			if !strings.HasPrefix(val, "https://") {
+				val = "https://" + val
+			}
+			if strings.HasSuffix(val, "/") {
+				val = strings.TrimRight(val, "/")
+			}
+			if !strings.HasSuffix(val, ".azconfig.io") {
+				val += ".azconfig.io"
+			}
+			chain.SetTo(val)
+		}
+	}).Print().Value()
+	config.CONFIG_KEYS = AsSplice().TrySetByEnv("CONFIG_KEYS").Print().Value()
+
+	// load from appconfig
+	if len(config.APPCONFIG) > 0 && len(config.CONFIG_KEYS) > 0 {
+		err = Apply(ctx, config.CONFIG_KEYS)
+		if err != nil {
+			return
+		}
 	}
 
-	AsString().TrySetByEnv("SECRET").Resolve(ctx).Print()
-
+	return
 }

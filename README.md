@@ -2,6 +2,102 @@
 
 # go-config
 
+## Sample
+
+Below is a sample of normal usage. Take particular note of a few things:
+
+* The startup will load a .env file (if there is one), display all pre-configuration settings, pull CONFIG_KEYS from APPCONFIG (if those are specified), and then set those as environment variables.
+
+* Setting enums using AsInt is supported as shown below for the log levels.
+
+* All variables Print() after they are processed so the user can look at the logs to see what happened.
+
+In addition, I personally like the following patterns:
+
+* Loading all configuration variables in the init() func().
+
+* Putting the configuration items into a struct.
+
+* Setting the configuration as a local variable scoped for the entire module.
+
+* Using all uppercase (even though they aren't technically constants, they generally should be treated the same) where the name matches the environment variable names.
+
+```go
+type Config struct {
+	STORAGE_ACCOUNT string
+	STORAGE_KEY     string
+	RETENTION       time.Duration
+	CONCURRENCY     int
+	INTERVAL        time.Duration
+}
+
+var config Config
+
+func init() {
+
+	// startup config
+	err := goconfig.Startup(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	// start config block
+	fmt.Println("CONFIGURATION:")
+
+	// configure logging
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+	logLevels := map[string]int{
+		"trace":    int(zerolog.TraceLevel),
+		"debug":    int(zerolog.DebugLevel),
+		"info":     int(zerolog.InfoLevel),
+		"warn":     int(zerolog.WarnLevel),
+		"error":    int(zerolog.ErrorLevel),
+		"fatal":    int(zerolog.FatalLevel),
+		"panic":    int(zerolog.PanicLevel),
+		"nolevel":  int(zerolog.NoLevel),
+		"disabled": int(zerolog.Disabled),
+	}
+	logLevel := goconfig.AsInt().TrySetByEnv("LOG_LEVEL").Lookup(logLevels).DefaultTo(int(zerolog.InfoLevel)).PrintLookup(logLevels).Value()
+	zerolog.SetGlobalLevel(zerolog.Level(logLevel))
+
+	// load configuration
+	config.STORAGE_ACCOUNT = goconfig.AsString().TrySetByEnv("STORAGE_ACCOUNT").Print().Require().Value()
+	config.STORAGE_KEY = goconfig.AsString().TrySetByEnv("STORAGE_KEY").PrintMasked().Require().Value()
+	config.RETENTION = goconfig.AsDuration().TrySetByEnv("RETENTION").DefaultTo(24 * time.Hour).Print().Value()
+	config.CONCURRENCY = goconfig.AsInt().TrySetByEnv("CONCURRENCY").DefaultTo(8).Clamp(1, 256).Print().Value()
+	config.INTERVAL = goconfig.AsDuration().TrySetByEnv("INTERVAL").DefaultTo(10 * time.Second).Print().Value()
+
+}
+```
+
+Given a .env file like this...
+
+```text
+AUTH_MODE=cli
+APPCONFIG=pelasne-config
+CONFIG_KEYS=override:*, sample:*
+CONCURRENCY=32
+STORAGE_ACCOUNT=pelasnediagdiag
+STORAGE_KEY=W...Q==
+HOURS_TO_RETAIN=6
+```
+
+...the output will look something like this...
+
+```text
+PRE-CONFIGURATION:
+  AUTH_MODE = cli
+  APPCONFIG = "https://pelasne-config.azconfig.io"
+  CONFIG_KEYS = [override:* sample:*]
+CONFIGURATION:
+  LOG_LEVEL = info
+  STORAGE_ACCOUNT = "pelasnediagdiag"
+  STORAGE_KEY = (set)
+  RETENTION = 6h0m0s
+  CONCURRENCY = 32
+  INTERVAL = 10s
+```
+
 stuff goes here
 
 ```go
@@ -185,4 +281,42 @@ func Print(config interface{}) {
 
 }
 
+```
+
+```go
+type AccessTokenEntry struct {
+	AccessToken string `json:"accessToken"`
+}
+
+func GetAccessToken(ctx context.Context, resource string) (accessToken string, err error) {
+
+	// execute the command and get the output
+	cmd := exec.CommandContext(ctx, "az", "account", "get-access-token", "--resource", resource)
+	var content []byte
+	content, err = cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			err = errors.New(string(ee.Stderr))
+		}
+		return
+	}
+
+	// deserialize
+	var entry AccessTokenEntry
+	err = json.Unmarshal(content, &entry)
+	if err != nil {
+		return
+	}
+
+	// check for an accessToken
+	// NOTE: this probably won't happen because cmd.Output() will probably throw a non-zero code
+	if len(entry.AccessToken) < 1 {
+		err = fmt.Errorf("the access token could not be obtained from az-cli - %s", content)
+	}
+
+	// return the accessToken
+	accessToken = entry.AccessToken
+	return
+
+}
 ```
