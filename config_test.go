@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestAsString(t *testing.T) {
@@ -564,7 +565,6 @@ func TestAsBool(t *testing.T) {
 
 	t.Run("AsBool().TrySetByString(cat).Lookup", func(t *testing.T) {
 		e := true
-		os.Setenv("TEST_VALUE", "cat")
 		table := map[string]bool{"cat": true}
 		a := AsBool().TrySetByString("cat").Lookup(table).Value()
 		if a != e {
@@ -1047,6 +1047,187 @@ func ExampleAsIntForEnum() {
 
 	// Output:
 	// TEST_01 = yellow
+}
+
+func TestAsDuration(t *testing.T) {
+
+	t.Run("AsDuration().TrySetByString(24m)", func(t *testing.T) {
+		e := 24 * time.Minute
+		a := AsDuration().TrySetByString("24m").Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetByString(bad)", func(t *testing.T) {
+		e := 0 * time.Second
+		a := AsDuration().TrySetByString("bad").Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetByString(cat).Lookup", func(t *testing.T) {
+		e := 15 * time.Second
+		table := map[string]time.Duration{"cat": 15 * time.Second}
+		a := AsDuration().TrySetByString("cat").Lookup(table).Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().Transform", func(t *testing.T) {
+		e := 21 * time.Hour
+		a := AsDuration().Transform(func(chain *DurationChain) {
+			if !chain.IsSet() {
+				chain.SetTo(21 * time.Hour)
+			}
+		}).Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetByEnv(true)", func(t *testing.T) {
+		e := 16*time.Hour + 15*time.Minute
+		os.Setenv("TEST_VALUE", "16h15m")
+		a := AsDuration().TrySetByEnv("TEST_VALUE").Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetByEnv(bad)", func(t *testing.T) {
+		e := 13 * time.Hour
+		os.Setenv("TEST_VALUE", "bad")
+		a := AsDuration().TrySetByEnv("TEST_VALUE").DefaultTo(13 * time.Hour).Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetByEnv(cat).Lookup", func(t *testing.T) {
+		e := 15 * time.Second
+		os.Setenv("TEST_VALUE", "cat")
+		table := map[string]time.Duration{"cat": 15 * time.Second}
+		a := AsDuration().TrySetByEnv("TEST_VALUE").Lookup(table).Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetByEnv(cat).Transform", func(t *testing.T) {
+		e := 24 * time.Hour
+		os.Setenv("TEST_VALUE", "cat")
+		a := AsDuration().TrySetByEnv("TEST_VALUE").Transform(func(chain *DurationChain) {
+			val := chain.StringValue()
+			if val == "cat" {
+				chain.SetTo(24 * time.Hour)
+			}
+		}).Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetTo(15m).TrySetTo(17h)", func(t *testing.T) {
+		e := 15 * time.Minute
+		a := AsDuration().TrySetTo(15 * time.Minute).TrySetTo(17 * time.Hour).Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetTo(15m).SetTo(17h)", func(t *testing.T) {
+		e := 17 * time.Hour
+		a := AsDuration().TrySetTo(15 * time.Minute).SetTo(17 * time.Hour).Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration()_null_is_0", func(t *testing.T) {
+		e := 0 * time.Second
+		a := AsDuration().Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration()_required_panics", func(t *testing.T) {
+		defer func() {
+			if err := recover(); err == nil {
+				t.Error("AsDuration() Failed: expected panic")
+			}
+		}()
+		AsDuration().Require() // no value is set
+	})
+
+	t.Run("AsDuration().IsSet()_is_true", func(t *testing.T) {
+		a := AsDuration().DefaultTo(15 * time.Minute)
+		if !a.IsSet() {
+			t.Errorf("AsDuration() Failed: expected IsSet() to be true")
+		}
+	})
+
+	t.Run("AsDuration().IsSet()_is_false", func(t *testing.T) {
+		a := AsDuration()
+		if a.IsSet() {
+			t.Errorf("AsDuration() Failed: expected IsSet() to be false")
+		}
+	})
+
+	t.Run("AsDuration().Key()_from_Name()", func(t *testing.T) {
+		e := "NameTest"
+		a := AsDuration().Name("NameTest").Key()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %s, got %s", e, a)
+		}
+	})
+
+	t.Run("AsDuration().Key()_from_TrySetByEnv()", func(t *testing.T) {
+		e := "TEST_VALUE"
+		os.Setenv("TEST_VALUE", "bad") // NOTE: the name is set even if the value isn't valid
+		a := AsDuration().TrySetByEnv("TEST_VALUE").Key()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %s, got %s", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetTo(10s).Clear().TrySetTo(11m)", func(t *testing.T) {
+		e := 11 * time.Minute
+		a := AsDuration().TrySetTo(10 * time.Second).Clear().TrySetTo(11 * time.Minute).Value()
+		if a != e {
+			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
+		}
+	})
+
+	t.Run("AsDuration().TrySetTo(true).Clear().IsSet()", func(t *testing.T) {
+		a := AsDuration().TrySetTo(11 * time.Second).Clear()
+		if a.IsSet() {
+			t.Errorf("AsDuration() Failed: expected IsSet() to be false")
+		}
+	})
+
+}
+
+func ExampleAsDuration() {
+	// NOTE: this tests the Print() functionality
+
+	AsDuration().Name("TEST_01").TrySetByString("15h13m2s").Print()
+	os.Setenv("TEST_VALUE", "13m")
+	AsDuration().Name("TEST_02").TrySetByEnv("TEST_VALUE").Print()
+	os.Setenv("TEST_VALUE", "17h")
+	AsDuration().TrySetByEnv("TEST_VALUE").Print()
+	AsDuration().Name("TEST_04").SetTo(time.Duration(15 * time.Minute)).PrintMasked()
+	AsDuration().Name("TEST_05").PrintMasked()
+
+	// Output:
+	// TEST_01 = 15h13m2s
+	// TEST_02 = 13m0s
+	// TEST_VALUE = 17h0m0s
+	// TEST_04 = (set)
+	// TEST_05 = (not-set)
 }
 
 func TestIfThenElse(t *testing.T) {
