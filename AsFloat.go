@@ -107,22 +107,37 @@ func (chain *FloatChain) Transform(f func(*FloatChain)) *FloatChain {
 }
 
 func (chain *FloatChain) Print() *FloatChain {
-	fmt.Printf("%s = %f\n", chain.Key(), chain.Value())
+	fmt.Printf("  %s = %f\n", chain.Key(), chain.Value())
 	return chain
 }
 
 func (chain *FloatChain) PrintMasked() *FloatChain {
 	if chain.value != nil {
-		fmt.Printf("%s = (set)\n", chain.Key())
+		fmt.Printf("  %s = (set)\n", chain.Key())
 	} else {
-		fmt.Printf("%s = (not-set)\n", chain.Key())
+		fmt.Printf("  %s = (not-set)\n", chain.Key())
+	}
+	return chain
+}
+
+func (chain *FloatChain) Clamp(min float64, max float64) *FloatChain {
+	if chain.value != nil {
+		if max < min {
+			panic(fmt.Errorf("max must be >= min"))
+		}
+		if *chain.value < min {
+			chain.value = &min
+		}
+		if *chain.value > max {
+			chain.value = &max
+		}
 	}
 	return chain
 }
 
 func (chain *FloatChain) Require() *FloatChain {
 	if chain.value == nil {
-		panic(fmt.Errorf("%s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
 	}
 	return chain
 }

@@ -111,15 +111,15 @@ func (chain *SpliceChain) Transform(f func(*SpliceChain)) *SpliceChain {
 }
 
 func (chain *SpliceChain) Print() *SpliceChain {
-	fmt.Printf("%s = %v\n", chain.Key(), chain.Value())
+	fmt.Printf("  %s = %v\n", chain.Key(), chain.Value())
 	return chain
 }
 
 func (chain *SpliceChain) PrintMasked() *SpliceChain {
 	if chain.value != nil {
-		fmt.Printf("%s = (set)\n", chain.Key())
+		fmt.Printf("  %s = (set)\n", chain.Key())
 	} else {
-		fmt.Printf("%s = (not-set)\n", chain.Key())
+		fmt.Printf("  %s = (not-set)\n", chain.Key())
 	}
 	return chain
 }

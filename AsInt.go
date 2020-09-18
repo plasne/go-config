@@ -107,15 +107,15 @@ func (chain *IntChain) Transform(f func(*IntChain)) *IntChain {
 }
 
 func (chain *IntChain) Print() *IntChain {
-	fmt.Printf("%s = %d\n", chain.Key(), chain.Value())
+	fmt.Printf("  %s = %d\n", chain.Key(), chain.Value())
 	return chain
 }
 
 func (chain *IntChain) PrintMasked() *IntChain {
 	if chain.value != nil {
-		fmt.Printf("%s = (set)\n", chain.Key())
+		fmt.Printf("  %s = (set)\n", chain.Key())
 	} else {
-		fmt.Printf("%s = (not-set)\n", chain.Key())
+		fmt.Printf("  %s = (not-set)\n", chain.Key())
 	}
 	return chain
 }
@@ -124,8 +124,23 @@ func (chain *IntChain) PrintLookup(lookup map[string]int) *IntChain {
 	val := chain.Value()
 	for k, v := range lookup {
 		if v == val {
-			fmt.Printf("%s = %s\n", chain.Key(), k)
+			fmt.Printf("  %s = %s\n", chain.Key(), k)
 			break
+		}
+	}
+	return chain
+}
+
+func (chain *IntChain) Clamp(min int, max int) *IntChain {
+	if chain.value != nil {
+		if max < min {
+			panic(fmt.Errorf("max must be >= min"))
+		}
+		if *chain.value < min {
+			chain.value = &min
+		}
+		if *chain.value > max {
+			chain.value = &max
 		}
 	}
 	return chain
