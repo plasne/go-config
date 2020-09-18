@@ -1262,3 +1262,4 @@ func TestResolveAll(t *testing.T) {
 }
 
 // TODO: add tests for Key Vault and AppConfig
+// TODO: add tests for Clamp()

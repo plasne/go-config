@@ -107,22 +107,22 @@ func (chain *DurationChain) Transform(f func(*DurationChain)) *DurationChain {
 }
 
 func (chain *DurationChain) Print() *DurationChain {
-	fmt.Printf("%s = %v\n", chain.Key(), chain.Value())
+	fmt.Printf("  %s = %v\n", chain.Key(), chain.Value())
 	return chain
 }
 
 func (chain *DurationChain) PrintMasked() *DurationChain {
 	if chain.value != nil {
-		fmt.Printf("%s = (set)\n", chain.Key())
+		fmt.Printf("  %s = (set)\n", chain.Key())
 	} else {
-		fmt.Printf("%s = (not-set)\n", chain.Key())
+		fmt.Printf("  %s = (not-set)\n", chain.Key())
 	}
 	return chain
 }
 
 func (chain *DurationChain) Require() *DurationChain {
 	if chain.value == nil {
-		panic(fmt.Errorf("%s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
 	}
 	return chain
 }

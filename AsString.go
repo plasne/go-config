@@ -102,15 +102,15 @@ func (chain *StringChain) Resolve(ctx context.Context) *StringChain {
 }
 
 func (chain *StringChain) Print() *StringChain {
-	fmt.Printf("%s = \"%s\"\n", chain.Key(), chain.Value())
+	fmt.Printf("  %s = \"%s\"\n", chain.Key(), chain.Value())
 	return chain
 }
 
 func (chain *StringChain) PrintMasked() *StringChain {
 	if chain.value != nil {
-		fmt.Printf("%s = (set)\n", chain.Key())
+		fmt.Printf("  %s = (set)\n", chain.Key())
 	} else {
-		fmt.Printf("%s = (not-set)\n", chain.Key())
+		fmt.Printf("  %s = (not-set)\n", chain.Key())
 	}
 	return chain
 }
