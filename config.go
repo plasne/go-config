@@ -31,9 +31,9 @@ const (
 )
 
 type preconfig struct {
-	AUTH_MODE   authMode
-	APPCONFIG   string
-	CONFIG_KEYS []string
+	GOCONFIG_AUTH_MODE   authMode
+	GOCONFIG_APPCONFIG   string
+	GOCONFIG_CONFIG_KEYS []string
 }
 
 var config preconfig
@@ -42,7 +42,7 @@ func applyAuthorizer(client *autorest.Client, resource string) (err error) {
 
 	// select
 	var authorizer autorest.Authorizer
-	switch config.AUTH_MODE {
+	switch config.GOCONFIG_AUTH_MODE {
 	case AuthMode_Env:
 		authorizer, err = auth.NewAuthorizerFromEnvironmentWithResource(resource)
 	case AuthMode_Cli:
@@ -96,8 +96,8 @@ func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (va
 	}
 
 	// make sure APPCONFIG is supplied so the load can happen
-	if len(config.APPCONFIG) < 1 {
-		err = fmt.Errorf("APPCONFIG was REQUIRED but not set.")
+	if len(config.GOCONFIG_APPCONFIG) < 1 {
+		err = fmt.Errorf("GOCONFIG_APPCONFIG was REQUIRED but not set.")
 		return
 	}
 
@@ -108,7 +108,7 @@ func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (va
 
 		// create/authorize the client
 		client := &autorest.Client{}
-		err = applyAuthorizer(client, config.APPCONFIG)
+		err = applyAuthorizer(client, config.GOCONFIG_APPCONFIG)
 		if err != nil {
 			return
 		}
@@ -118,7 +118,7 @@ func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (va
 		var req *http.Request
 		req, err = autorest.Prepare(&http.Request{},
 			autorest.AsGet(),
-			autorest.WithBaseURL(config.APPCONFIG),
+			autorest.WithBaseURL(config.GOCONFIG_APPCONFIG),
 			autorest.WithPath("/kv"),
 			autorest.WithQueryParameters(q))
 		if err != nil {
@@ -299,8 +299,8 @@ func Startup(ctx context.Context) (err error) {
 		"env": int(AuthMode_Env),
 		"cli": int(AuthMode_Cli),
 	}
-	config.AUTH_MODE = authMode(AsInt().TrySetByEnv("AUTH_MODE").Lookup(table).DefaultTo(0).PrintLookup(table).Value())
-	config.APPCONFIG = AsString().TrySetByEnv("APPCONFIG").Transform(func(chain *StringChain) {
+	config.GOCONFIG_AUTH_MODE = authMode(AsInt().TrySetByEnv("GOCONFIG_AUTH_MODE").Lookup(table).Clamp(0, 1).DefaultTo(0).PrintLookup(table).Value())
+	config.GOCONFIG_APPCONFIG = AsString().TrySetByEnv("GOCONFIG_APPCONFIG").Transform(func(chain *StringChain) {
 		if chain.IsSet() {
 			val := strings.ToLower(chain.Value())
 			if !strings.HasPrefix(val, "https://") {
@@ -315,11 +315,11 @@ func Startup(ctx context.Context) (err error) {
 			chain.SetTo(val)
 		}
 	}).Print().Value()
-	config.CONFIG_KEYS = AsSplice().TrySetByEnv("CONFIG_KEYS").Print().Value()
+	config.GOCONFIG_CONFIG_KEYS = AsSplice().TrySetByEnv("GOCONFIG_CONFIG_KEYS").Print().Value()
 
 	// load from appconfig
-	if len(config.APPCONFIG) > 0 && len(config.CONFIG_KEYS) > 0 {
-		err = Apply(ctx, config.CONFIG_KEYS)
+	if len(config.GOCONFIG_APPCONFIG) > 0 && len(config.GOCONFIG_CONFIG_KEYS) > 0 {
+		err = Apply(ctx, config.GOCONFIG_CONFIG_KEYS)
 		if err != nil {
 			return
 		}

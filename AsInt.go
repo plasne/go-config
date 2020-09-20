@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -11,6 +12,10 @@ type IntChain struct {
 	name   *string
 	strval *string
 	value  *int
+}
+
+func (chain *IntChain) Print3() {
+	fmt.Println("print3")
 }
 
 func (chain *IntChain) Name(name string) *IntChain {
@@ -103,6 +108,17 @@ func (chain *IntChain) DefaultTo(value int) *IntChain {
 
 func (chain *IntChain) Transform(f func(*IntChain)) *IntChain {
 	f(chain)
+	return chain
+}
+
+func (chain *IntChain) Resolve(ctx context.Context) *IntChain {
+	if chain.strval != nil {
+		val, err := resolve(ctx, *chain.strval)
+		if err != nil {
+			panic(err)
+		}
+		chain.setString(val)
+	}
 	return chain
 }
 

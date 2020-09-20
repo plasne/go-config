@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -107,6 +108,17 @@ func (chain *SpliceChain) DefaultTo(value []string) *SpliceChain {
 
 func (chain *SpliceChain) Transform(f func(*SpliceChain)) *SpliceChain {
 	f(chain)
+	return chain
+}
+
+func (chain *SpliceChain) Resolve(ctx context.Context) *SpliceChain {
+	if chain.strval != nil {
+		val, err := resolve(ctx, *chain.strval)
+		if err != nil {
+			panic(err)
+		}
+		chain.setString(val)
+	}
 	return chain
 }
 

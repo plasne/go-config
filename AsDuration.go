@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -103,6 +104,17 @@ func (chain *DurationChain) DefaultTo(value time.Duration) *DurationChain {
 
 func (chain *DurationChain) Transform(f func(*DurationChain)) *DurationChain {
 	f(chain)
+	return chain
+}
+
+func (chain *DurationChain) Resolve(ctx context.Context) *DurationChain {
+	if chain.strval != nil {
+		val, err := resolve(ctx, *chain.strval)
+		if err != nil {
+			panic(err)
+		}
+		chain.setString(val)
+	}
 	return chain
 }
 

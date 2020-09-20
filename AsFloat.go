@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -103,6 +104,17 @@ func (chain *FloatChain) DefaultTo(value float64) *FloatChain {
 
 func (chain *FloatChain) Transform(f func(*FloatChain)) *FloatChain {
 	f(chain)
+	return chain
+}
+
+func (chain *FloatChain) Resolve(ctx context.Context) *FloatChain {
+	if chain.strval != nil {
+		val, err := resolve(ctx, *chain.strval)
+		if err != nil {
+			panic(err)
+		}
+		chain.setString(val)
+	}
 	return chain
 }
 
