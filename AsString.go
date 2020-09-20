@@ -96,7 +96,7 @@ func (chain *StringChain) Resolve(ctx context.Context) *StringChain {
 		if err != nil {
 			panic(err)
 		}
-		chain.value = &val
+		chain.setString(val)
 	}
 	return chain
 }

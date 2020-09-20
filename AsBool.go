@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -107,6 +108,17 @@ func (chain *BoolChain) DefaultTo(value bool) *BoolChain {
 
 func (chain *BoolChain) Transform(f func(*BoolChain)) *BoolChain {
 	f(chain)
+	return chain
+}
+
+func (chain *BoolChain) Resolve(ctx context.Context) *BoolChain {
+	if chain.strval != nil {
+		val, err := resolve(ctx, *chain.strval)
+		if err != nil {
+			panic(err)
+		}
+		chain.setString(val)
+	}
 	return chain
 }
 
