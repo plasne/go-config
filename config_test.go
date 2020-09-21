@@ -2,32 +2,31 @@ package config
 
 import (
 	"os"
-	"reflect"
 	"testing"
 	"time"
 )
 
 func TestAsString(t *testing.T) {
 
-	t.Run("AsString().TrySetTo(cat)", func(t *testing.T) {
+	t.Run("AsString().TrySetValue(cat)", func(t *testing.T) {
 		e := "cat"
-		a := AsString().TrySetTo("cat").Value()
+		a := AsString().TrySetValue("cat").Value()
 		if a != e {
 			t.Errorf("AsString() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
 	})
 
-	t.Run("AsString().TrySetTo().DefaultTo(cat)", func(t *testing.T) {
+	t.Run("AsString().TrySetValue().DefaultTo(cat)", func(t *testing.T) {
 		e := "cat"
-		a := AsString().TrySetTo("").DefaultTo("cat").Value()
+		a := AsString().TrySetValue("").DefaultTo("cat").Value()
 		if a != e {
 			t.Errorf("AsString() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
 	})
 
-	t.Run("AsString().AllowEmpty().TrySetTo().DefaultTo(cat)", func(t *testing.T) {
+	t.Run("AsString().SetEmpty(null).TrySetValue().DefaultTo(cat)", func(t *testing.T) {
 		e := ""
-		a := AsString().AllowEmpty().TrySetTo("").DefaultTo("cat").Value()
+		a := AsString().SetEmpty("null").TrySetValue("").DefaultTo("cat").Value()
 		if a != e {
 			t.Errorf("AsString() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
@@ -51,27 +50,27 @@ func TestAsString(t *testing.T) {
 		}
 	})
 
-	t.Run("AsString().AllowEmpty().TrySetByEnv().DefaultTo(dog)", func(t *testing.T) {
+	t.Run("AsString().SetEmpty(null).TrySetByEnv().DefaultTo(dog)", func(t *testing.T) {
 		e := ""
 		os.Setenv("TEST_VALUE", "")
-		a := AsString().AllowEmpty().TrySetByEnv("TEST_VALUE").DefaultTo("dog").Value()
+		a := AsString().SetEmpty("null").TrySetByEnv("TEST_VALUE").DefaultTo("dog").Value()
 		if a != e {
 			t.Errorf("AsString() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
 	})
 
-	t.Run("AsString().TrySetByEnv(cat).SetTo(dog)", func(t *testing.T) {
+	t.Run("AsString().TrySetByEnv(cat).SetValue(dog)", func(t *testing.T) {
 		e := "dog"
 		os.Setenv("TEST_VALUE", "cat")
-		a := AsString().TrySetByEnv("TEST_VALUE").SetTo("dog").Value()
+		a := AsString().TrySetByEnv("TEST_VALUE").SetValue("dog").Value()
 		if a != e {
 			t.Errorf("AsString() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
 	})
 
-	t.Run("AsString().SetTo(cat).SetTo(dog)", func(t *testing.T) {
+	t.Run("AsString().SetValue(cat).SetValue(dog)", func(t *testing.T) {
 		e := "dog"
-		a := AsString().SetTo("cat").SetTo("dog").Value()
+		a := AsString().SetValue("cat").SetValue("dog").Value()
 		if a != e {
 			t.Errorf("AsString() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
@@ -85,19 +84,25 @@ func TestAsString(t *testing.T) {
 		}
 	})
 
-	t.Run("AsString()_whitespace_is_empty", func(t *testing.T) {
-		e := ""
-		a := AsString().TrySetTo("   ").Value()
+	t.Run("AsString()_whitespace_is_allowed", func(t *testing.T) {
+		e := "   "
+		a := AsString().TrySetValue("   ").DefaultTo("cat").Value()
 		if a != e {
 			t.Errorf("AsString() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
 	})
 
-	t.Run("AsString()_whitespace_is_allowed_on_explict_set", func(t *testing.T) {
-		e := "   "
-		a := AsString().SetTo("   ").Value()
-		if a != e {
-			t.Errorf("AsString() Failed: expected \"%s\", got \"%s\"", e, a)
+	t.Run("AsString()_empty_is_not_set_on_try", func(t *testing.T) {
+		a := AsString().TrySetValue("")
+		if a.IsValueSet() {
+			t.Errorf("AsString() Failed: expected IsValueSet() to be false")
+		}
+	})
+
+	t.Run("AsString()_empty_is_set_on_explicit", func(t *testing.T) {
+		a := AsString().SetValue("")
+		if !a.IsValueSet() {
+			t.Errorf("AsString() Failed: expected IsValueSet() to be true")
 		}
 	})
 
@@ -110,23 +115,23 @@ func TestAsString(t *testing.T) {
 		AsString().Require() // no value is set
 	})
 
-	t.Run("AsString().IsSet()_is_true", func(t *testing.T) {
+	t.Run("AsString().IsValueSet()_is_true", func(t *testing.T) {
 		a := AsString().DefaultTo("cat")
-		if !a.IsSet() {
+		if !a.IsValueSet() {
 			t.Errorf("AsString() Failed: expected IsSet() to be true")
 		}
 	})
 
-	t.Run("AsString().IsSet()_is_false", func(t *testing.T) {
+	t.Run("AsString().IsValueSet()_is_false", func(t *testing.T) {
 		a := AsString()
-		if a.IsSet() {
+		if a.IsValueSet() {
 			t.Errorf("AsString() Failed: expected IsSet() to be false")
 		}
 	})
 
-	t.Run("AsString().Key()_from_Name()", func(t *testing.T) {
+	t.Run("AsString().SetKey()", func(t *testing.T) {
 		e := "NameTest"
-		a := AsString().Name("NameTest").Key()
+		a := AsString().SetKey("NameTest").Key()
 		if a != e {
 			t.Errorf("AsString() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
@@ -141,18 +146,18 @@ func TestAsString(t *testing.T) {
 		}
 	})
 
-	t.Run("AsString().TrySetTo(cat).Clear().TrySetTo(dog)", func(t *testing.T) {
+	t.Run("AsString().TrySetValue(cat).Clear().TrySetValue(dog)", func(t *testing.T) {
 		e := "dog"
-		a := AsString().TrySetTo("cat").Clear().TrySetTo("dog").Value()
+		a := AsString().TrySetValue("cat").Clear().TrySetValue("dog").Value()
 		if a != e {
 			t.Errorf("AsString() Failed: expected %s, got %s", e, a)
 		}
 	})
 
-	t.Run("AsString().TrySetTo(cat).Clear().IsSet()", func(t *testing.T) {
-		a := AsString().TrySetTo("cat").Clear()
-		if a.IsSet() {
-			t.Errorf("AsString() Failed: expected IsSet() to be false")
+	t.Run("AsString().TrySetValue(cat).Clear().IsValueSet()", func(t *testing.T) {
+		a := AsString().TrySetValue("cat").Clear()
+		if a.IsValueSet() {
+			t.Errorf("AsString() Failed: expected IsValueSet() to be false")
 		}
 	})
 
@@ -161,18 +166,18 @@ func TestAsString(t *testing.T) {
 func ExampleAsString() {
 	// NOTE: this tests the Print() functionality
 
-	AsString().Name("TEST_01").TrySetTo("cat").Print()
+	AsString().SetKey("TEST_01").TrySetValue("cat").Print()
 	os.Setenv("TEST_VALUE", "dog")
-	AsString().Name("TEST_02").TrySetByEnv("TEST_VALUE").Print()
+	AsString().SetKey("TEST_02").TrySetByEnv("TEST_VALUE").Print()
 	os.Setenv("TEST_VALUE", "bear")
 	AsString().TrySetByEnv("TEST_VALUE").Print()
-	AsString().Name("TEST_04").SetTo("bird").PrintMasked()
-	AsString().Name("TEST_05").PrintMasked()
+	AsString().SetKey("TEST_04").SetValue("bird").PrintMasked()
+	AsString().SetKey("TEST_05").PrintMasked()
 
 	// Output:
-	//   TEST_01 = "cat"
-	//   TEST_02 = "dog"
-	//   TEST_VALUE = "bear"
+	//   TEST_01 = cat
+	//   TEST_02 = dog
+	//   TEST_VALUE = bear
 	//   TEST_04 = (set)
 	//   TEST_05 = (not-set)
 }
@@ -208,8 +213,8 @@ func TestAsInt(t *testing.T) {
 	t.Run("AsInt().Transform", func(t *testing.T) {
 		e := 456
 		a := AsInt().Transform(func(chain *IntChain) {
-			if !chain.IsSet() {
-				chain.SetTo(456)
+			if !chain.IsValueSet() {
+				chain.SetValue(456)
 			}
 		}).Value()
 		if a != e {
@@ -251,7 +256,7 @@ func TestAsInt(t *testing.T) {
 		a := AsInt().TrySetByEnv("TEST_VALUE").Transform(func(chain *IntChain) {
 			val := chain.StringValue()
 			if val == "cat" {
-				chain.SetTo(100)
+				chain.SetValue(100)
 			}
 		}).Value()
 		if a != e {
@@ -259,17 +264,17 @@ func TestAsInt(t *testing.T) {
 		}
 	})
 
-	t.Run("AsInt().TrySetTo(123).TrySetTo(456)", func(t *testing.T) {
+	t.Run("AsInt().TrySetValue(123).TrySetValue(456)", func(t *testing.T) {
 		e := 123
-		a := AsInt().TrySetTo(123).TrySetTo(456).Value()
+		a := AsInt().TrySetValue(123).TrySetValue(456).Value()
 		if a != e {
 			t.Errorf("AsInt() Failed: expected %d, got %d", e, a)
 		}
 	})
 
-	t.Run("AsInt().TrySetTo(123).SetTo(456)", func(t *testing.T) {
+	t.Run("AsInt().TrySetValue(123).SetValue(456)", func(t *testing.T) {
 		e := 456
-		a := AsInt().TrySetTo(123).SetTo(456).Value()
+		a := AsInt().TrySetValue(123).SetValue(456).Value()
 		if a != e {
 			t.Errorf("AsInt() Failed: expected %d, got %d", e, a)
 		}
@@ -292,23 +297,23 @@ func TestAsInt(t *testing.T) {
 		AsInt().Require() // no value is set
 	})
 
-	t.Run("AsInt().IsSet()_is_true", func(t *testing.T) {
+	t.Run("AsInt().IsValueSet()_is_true", func(t *testing.T) {
 		a := AsInt().DefaultTo(444)
-		if !a.IsSet() {
-			t.Errorf("AsInt() Failed: expected IsSet() to be true")
+		if !a.IsValueSet() {
+			t.Errorf("AsInt() Failed: expected IsValueSet() to be true")
 		}
 	})
 
-	t.Run("AsInt().IsSet()_is_false", func(t *testing.T) {
+	t.Run("AsInt().IsValueSet()_is_false", func(t *testing.T) {
 		a := AsInt()
-		if a.IsSet() {
-			t.Errorf("AsInt() Failed: expected IsSet() to be false")
+		if a.IsValueSet() {
+			t.Errorf("AsInt() Failed: expected IsValueSet() to be false")
 		}
 	})
 
-	t.Run("AsInt().Key()_from_Name()", func(t *testing.T) {
+	t.Run("AsInt().SetKey()", func(t *testing.T) {
 		e := "NameTest"
-		a := AsInt().Name("NameTest").Key()
+		a := AsInt().SetKey("NameTest").Key()
 		if a != e {
 			t.Errorf("AsInt() Failed: expected %s, got %s", e, a)
 		}
@@ -323,18 +328,18 @@ func TestAsInt(t *testing.T) {
 		}
 	})
 
-	t.Run("AsInt().TrySetTo(444).Clear().TrySetTo(887)", func(t *testing.T) {
+	t.Run("AsInt().TrySetValue(444).Clear().TrySetValue(887)", func(t *testing.T) {
 		e := 887
-		a := AsInt().TrySetTo(444).Clear().TrySetTo(887).Value()
+		a := AsInt().TrySetValue(444).Clear().TrySetValue(887).Value()
 		if a != e {
 			t.Errorf("AsInt() Failed: expected %d, got %d", e, a)
 		}
 	})
 
-	t.Run("AsInt().TrySetTo(111).Clear().IsSet()", func(t *testing.T) {
-		a := AsInt().TrySetTo(111).Clear()
-		if a.IsSet() {
-			t.Errorf("AsInt() Failed: expected IsSet() to be false")
+	t.Run("AsInt().TrySetValue(111).Clear().IsValueSet()", func(t *testing.T) {
+		a := AsInt().TrySetValue(111).Clear()
+		if a.IsValueSet() {
+			t.Errorf("AsInt() Failed: expected IsValueSet() to be false")
 		}
 	})
 
@@ -343,23 +348,23 @@ func TestAsInt(t *testing.T) {
 func ExampleAsInt() {
 	// NOTE: this tests the Print() functionality
 
-	AsInt().Name("TEST_01").TrySetByString("111").Print()
+	AsInt().SetKey("TEST_01").TrySetByString("111").Print()
 	os.Setenv("TEST_VALUE", "")
-	AsInt().Name("TEST_02").TrySetByEnv("TEST_VALUE").Print()
+	AsInt().SetKey("TEST_02").TrySetByEnv("TEST_VALUE").Print()
 	os.Setenv("TEST_VALUE", "222")
-	AsInt().Name("TEST_03").TrySetByEnv("TEST_VALUE").Print()
+	AsInt().SetKey("TEST_03").TrySetByEnv("TEST_VALUE").Print()
 	os.Setenv("TEST_VALUE", "333")
 	AsInt().TrySetByEnv("TEST_VALUE").Print()
-	AsInt().Name("TEST_04").SetTo(383).PrintMasked()
-	AsInt().Name("TEST_05").PrintMasked()
+	AsInt().SetKey("TEST_04").SetValue(383).PrintMasked()
+	AsInt().SetKey("TEST_05").PrintMasked()
 
 	// Output:
-	// TEST_01 = 111
-	// TEST_02 = 0
-	// TEST_03 = 222
-	// TEST_VALUE = 333
-	// TEST_04 = (set)
-	// TEST_05 = (not-set)
+	//   TEST_01 = 111
+	//   TEST_02 = 0
+	//   TEST_03 = 222
+	//   TEST_VALUE = 333
+	//   TEST_04 = (set)
+	//   TEST_05 = (not-set)
 }
 
 func TestAsFloat(t *testing.T) {
@@ -392,9 +397,9 @@ func TestAsFloat(t *testing.T) {
 
 	t.Run("AsFloat().Transform", func(t *testing.T) {
 		e := 456.75
-		a := AsFloat().Transform(func(chain *FloatChain) {
-			if !chain.IsSet() {
-				chain.SetTo(456.75)
+		a := AsFloat().Transform(func(chain *Float64Chain) {
+			if !chain.IsValueSet() {
+				chain.SetValue(456.75)
 			}
 		}).Value()
 		if a != e {
@@ -433,10 +438,10 @@ func TestAsFloat(t *testing.T) {
 	t.Run("AsFloat().TrySetByEnv(cat).Transform", func(t *testing.T) {
 		e := 100.0
 		os.Setenv("TEST_VALUE", "cat")
-		a := AsFloat().TrySetByEnv("TEST_VALUE").Transform(func(chain *FloatChain) {
+		a := AsFloat().TrySetByEnv("TEST_VALUE").Transform(func(chain *Float64Chain) {
 			val := chain.StringValue()
 			if val == "cat" {
-				chain.SetTo(100)
+				chain.SetValue(100)
 			}
 		}).Value()
 		if a != e {
@@ -444,17 +449,17 @@ func TestAsFloat(t *testing.T) {
 		}
 	})
 
-	t.Run("AsFloat().TrySetTo(123).TrySetTo(456)", func(t *testing.T) {
+	t.Run("AsFloat().TrySetValue(123).TrySetValue(456)", func(t *testing.T) {
 		e := 123.5
-		a := AsFloat().TrySetTo(123.5).TrySetTo(456.25).Value()
+		a := AsFloat().TrySetValue(123.5).TrySetValue(456.25).Value()
 		if a != e {
 			t.Errorf("AsFloat() Failed: expected %f, got %f", e, a)
 		}
 	})
 
-	t.Run("AsFloat().TrySetTo(123).SetTo(456)", func(t *testing.T) {
+	t.Run("AsFloat().TrySetValue(123).SetValue(456)", func(t *testing.T) {
 		e := 456.75
-		a := AsFloat().TrySetTo(123.5).SetTo(456.75).Value()
+		a := AsFloat().TrySetValue(123.5).SetValue(456.75).Value()
 		if a != e {
 			t.Errorf("AsFloat() Failed: expected %f, got %f", e, a)
 		}
@@ -479,21 +484,21 @@ func TestAsFloat(t *testing.T) {
 
 	t.Run("AsFloat().IsSet()_is_true", func(t *testing.T) {
 		a := AsFloat().DefaultTo(444)
-		if !a.IsSet() {
+		if !a.IsValueSet() {
 			t.Errorf("AsFloat() Failed: expected IsSet() to be true")
 		}
 	})
 
 	t.Run("AsFloat().IsSet()_is_false", func(t *testing.T) {
 		a := AsFloat()
-		if a.IsSet() {
+		if a.IsValueSet() {
 			t.Errorf("AsFloat() Failed: expected IsSet() to be false")
 		}
 	})
 
 	t.Run("AsFloat().Key()_from_Name()", func(t *testing.T) {
 		e := "NameTest"
-		a := AsFloat().Name("NameTest").Key()
+		a := AsFloat().SetKey("NameTest").Key()
 		if a != e {
 			t.Errorf("AsFloat() Failed: expected %s, got %s", e, a)
 		}
@@ -508,18 +513,18 @@ func TestAsFloat(t *testing.T) {
 		}
 	})
 
-	t.Run("AsFloat().TrySetTo(444).Clear().TrySetTo(887)", func(t *testing.T) {
+	t.Run("AsFloat().TrySetValue(444).Clear().TrySetValue(887)", func(t *testing.T) {
 		e := 887.25
-		a := AsFloat().TrySetTo(444).Clear().TrySetTo(887.25).Value()
+		a := AsFloat().TrySetValue(444).Clear().TrySetValue(887.25).Value()
 		if a != e {
 			t.Errorf("AsFloat() Failed: expected %f, got %f", e, a)
 		}
 	})
 
-	t.Run("AsFloat().TrySetTo(111).Clear().IsSet()", func(t *testing.T) {
-		a := AsFloat().TrySetTo(111).Clear()
-		if a.IsSet() {
-			t.Errorf("AsFloat() Failed: expected IsSet() to be false")
+	t.Run("AsFloat().TrySetValue(111).Clear().IsSet()", func(t *testing.T) {
+		a := AsFloat().TrySetValue(111).Clear()
+		if a.IsValueSet() {
+			t.Errorf("AsFloat() Failed: expected IsValueSet() to be false")
 		}
 	})
 
@@ -528,20 +533,20 @@ func TestAsFloat(t *testing.T) {
 func ExampleAsFloat() {
 	// NOTE: this tests the Print() functionality
 
-	AsFloat().Name("TEST_01").TrySetTo(111.25).Print()
+	AsFloat().SetKey("TEST_01").SetValue(111.25).Print()
 	os.Setenv("TEST_VALUE", "222.50")
-	AsFloat().Name("TEST_02").TrySetByEnv("TEST_VALUE").Print()
+	AsFloat().SetKey("TEST_02").TrySetByEnv("TEST_VALUE").Print()
 	os.Setenv("TEST_VALUE", "333.75")
 	AsFloat().TrySetByEnv("TEST_VALUE").Print()
-	AsFloat().Name("TEST_04").SetTo(444.0).PrintMasked()
-	AsFloat().Name("TEST_05").PrintMasked()
+	AsFloat().SetKey("TEST_04").SetValue(444.0).PrintMasked()
+	AsFloat().SetKey("TEST_05").PrintMasked()
 
 	// Output:
-	// TEST_01 = 111.250000
-	// TEST_02 = 222.500000
-	// TEST_VALUE = 333.750000
-	// TEST_04 = (set)
-	// TEST_05 = (not-set)
+	//   TEST_01 = 111.25
+	//   TEST_02 = 222.5
+	//   TEST_VALUE = 333.75
+	//   TEST_04 = (set)
+	//   TEST_05 = (not-set)
 }
 
 func TestAsBool(t *testing.T) {
@@ -574,8 +579,8 @@ func TestAsBool(t *testing.T) {
 	t.Run("AsBool().Transform", func(t *testing.T) {
 		e := true
 		a := AsBool().Transform(func(chain *BoolChain) {
-			if !chain.IsSet() {
-				chain.SetTo(true)
+			if !chain.IsValueSet() {
+				chain.SetValue(true)
 			}
 		}).Value()
 		if a != e {
@@ -617,7 +622,7 @@ func TestAsBool(t *testing.T) {
 		a := AsBool().TrySetByEnv("TEST_VALUE").Transform(func(chain *BoolChain) {
 			val := chain.StringValue()
 			if val == "cat" {
-				chain.SetTo(true)
+				chain.SetValue(true)
 			}
 		}).Value()
 		if a != e {
@@ -625,17 +630,17 @@ func TestAsBool(t *testing.T) {
 		}
 	})
 
-	t.Run("AsBool().TrySetTo(false).TrySetTo(true)", func(t *testing.T) {
+	t.Run("AsBool().TrySetValue(false).TrySetValue(true)", func(t *testing.T) {
 		e := false
-		a := AsBool().TrySetTo(false).TrySetTo(true).Value()
+		a := AsBool().TrySetValue(false).TrySetValue(true).Value()
 		if a != e {
 			t.Errorf("AsBool() Failed: expected %t, got %t", e, a)
 		}
 	})
 
-	t.Run("AsBool().TrySetTo(false).SetTo(true)", func(t *testing.T) {
+	t.Run("AsBool().TrySetValue(false).SetValue(true)", func(t *testing.T) {
 		e := true
-		a := AsBool().TrySetTo(false).SetTo(true).Value()
+		a := AsBool().TrySetValue(false).SetValue(true).Value()
 		if a != e {
 			t.Errorf("AsBool() Failed: expected %t, got %t", e, a)
 		}
@@ -658,23 +663,23 @@ func TestAsBool(t *testing.T) {
 		AsBool().Require() // no value is set
 	})
 
-	t.Run("AsBool().IsSet()_is_true", func(t *testing.T) {
+	t.Run("AsBool().IsValueSet()_is_true", func(t *testing.T) {
 		a := AsBool().DefaultTo(true)
-		if !a.IsSet() {
-			t.Errorf("AsBool() Failed: expected IsSet() to be true")
+		if !a.IsValueSet() {
+			t.Errorf("AsBool() Failed: expected IsValueSet() to be true")
 		}
 	})
 
-	t.Run("AsBool().IsSet()_is_false", func(t *testing.T) {
+	t.Run("AsBool().IsValueSet()_is_false", func(t *testing.T) {
 		a := AsBool()
-		if a.IsSet() {
-			t.Errorf("AsBool() Failed: expected IsSet() to be false")
+		if a.IsValueSet() {
+			t.Errorf("AsBool() Failed: expected IsValueSet() to be false")
 		}
 	})
 
-	t.Run("AsBool().Key()_from_Name()", func(t *testing.T) {
+	t.Run("AsBool().SetKey()", func(t *testing.T) {
 		e := "NameTest"
-		a := AsBool().Name("NameTest").Key()
+		a := AsBool().SetKey("NameTest").Key()
 		if a != e {
 			t.Errorf("AsBool() Failed: expected %s, got %s", e, a)
 		}
@@ -689,18 +694,18 @@ func TestAsBool(t *testing.T) {
 		}
 	})
 
-	t.Run("AsBool().TrySetTo(false).Clear().TrySetTo(true)", func(t *testing.T) {
+	t.Run("AsBool().TrySetValue(false).Clear().TrySetValue(true)", func(t *testing.T) {
 		e := true
-		a := AsBool().TrySetTo(false).Clear().TrySetTo(true).Value()
+		a := AsBool().TrySetValue(false).Clear().TrySetValue(true).Value()
 		if a != e {
 			t.Errorf("AsBool() Failed: expected %t, got %t", e, a)
 		}
 	})
 
-	t.Run("AsBool().TrySetTo(true).Clear().IsSet()", func(t *testing.T) {
-		a := AsBool().TrySetTo(true).Clear()
-		if a.IsSet() {
-			t.Errorf("AsBool() Failed: expected IsSet() to be false")
+	t.Run("AsBool().TrySetValue(true).Clear().IsValueSet()", func(t *testing.T) {
+		a := AsBool().TrySetValue(true).Clear()
+		if a.IsValueSet() {
+			t.Errorf("AsBool() Failed: expected IsValueSet() to be false")
 		}
 	})
 
@@ -709,20 +714,20 @@ func TestAsBool(t *testing.T) {
 func ExampleAsBool() {
 	// NOTE: this tests the Print() functionality
 
-	AsBool().Name("TEST_01").TrySetTo(true).Print()
+	AsBool().SetKey("TEST_01").TrySetValue(true).Print()
 	os.Setenv("TEST_VALUE", "yes")
-	AsBool().Name("TEST_02").TrySetByEnv("TEST_VALUE").Print()
+	AsBool().SetKey("TEST_02").TrySetByEnv("TEST_VALUE").Print()
 	os.Setenv("TEST_VALUE", "1")
 	AsBool().TrySetByEnv("TEST_VALUE").Print()
-	AsBool().Name("TEST_04").SetTo(false).PrintMasked()
-	AsBool().Name("TEST_05").PrintMasked()
+	AsBool().SetKey("TEST_04").SetValue(false).PrintMasked()
+	AsBool().SetKey("TEST_05").PrintMasked()
 
 	// Output:
-	// TEST_01 = true
-	// TEST_02 = true
-	// TEST_VALUE = true
-	// TEST_04 = (set)
-	// TEST_05 = (not-set)
+	//   TEST_01 = true
+	//   TEST_02 = true
+	//   TEST_VALUE = true
+	//   TEST_04 = (set)
+	//   TEST_05 = (not-set)
 }
 
 func TestAsBoolSpellings(t *testing.T) {
@@ -809,180 +814,188 @@ func TestAsBoolSpellings(t *testing.T) {
 
 }
 
-func TestAsSplice(t *testing.T) {
+func TestAsSlice(t *testing.T) {
 
-	t.Run("AsSplice().TrySetTo(cat,dog)", func(t *testing.T) {
+	t.Run("AsSlice().TrySetTo(cat,dog)", func(t *testing.T) {
 		e := []string{"cat", "dog"}
-		a := AsSplice().TrySetTo([]string{"cat", "dog"}).Value()
-		if !reflect.DeepEqual(e, a) {
+		a := AsSlice().TrySetValue([]string{"cat", "dog"}).Value()
+		if !areSlicesEqual(e, a) {
 			t.Errorf("AsString() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().DefaultTo(cat,dog)", func(t *testing.T) {
+	t.Run("AsSlice().DefaultTo(cat,dog)", func(t *testing.T) {
 		e := []string{"cat", "dog"}
-		a := AsSplice().DefaultTo([]string{"cat", "dog"}).Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected \"%v\", got \"%v\"", e, a)
+		a := AsSlice().DefaultTo([]string{"cat", "dog"}).Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().TrySetByString(cat,dog)", func(t *testing.T) {
+	t.Run("AsSlice().TrySetByString(cat,dog)", func(t *testing.T) {
 		e := []string{"cat", "dog"}
-		a := AsSplice().TrySetByString("cat,dog").Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected \"%v\", got \"%v\"", e, a)
+		a := AsSlice().TrySetByString("cat,dog").Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().TrySetByString(cat, dog)", func(t *testing.T) {
+	t.Run("AsSlice().TrySetByString(cat, dog)", func(t *testing.T) {
 		e := []string{"cat", "dog"}
-		a := AsSplice().TrySetByString("cat, dog").Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected \"%v\", got \"%v\"", e, a)
+		a := AsSlice().TrySetByString("cat, dog").Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().TrySetByString(cat)", func(t *testing.T) {
+	t.Run("AsSlice().TrySetByString(cat)", func(t *testing.T) {
 		e := []string{"cat"}
-		a := AsSplice().TrySetByString("cat").Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected \"%v\", got \"%v\"", e, a)
+		a := AsSlice().TrySetByString("cat").Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().TrySetByEnv(cat,dog)", func(t *testing.T) {
+	t.Run("AsSlice().TrySetByEnv(cat,dog)", func(t *testing.T) {
 		e := []string{"cat", "dog"}
 		os.Setenv("TEST_VALUE", "cat,dog")
-		a := AsSplice().TrySetByEnv("TEST_VALUE").Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected \"%v\", got \"%v\"", e, a)
+		a := AsSlice().TrySetByEnv("TEST_VALUE").Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().TrySetByEnv( cat , dog)", func(t *testing.T) {
+	t.Run("AsSlice().TrySetByEnv( cat , dog)", func(t *testing.T) {
 		e := []string{"cat", "dog"}
 		os.Setenv("TEST_VALUE", " cat , dog")
-		a := AsSplice().TrySetByEnv("TEST_VALUE").Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected \"%v\", got \"%v\"", e, a)
+		a := AsSlice().TrySetByEnv("TEST_VALUE").Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().TrySetByEnv().DefaultTo(dog)", func(t *testing.T) {
+	t.Run("AsSlice().TrySetByEnv().DefaultTo(dog)", func(t *testing.T) {
 		e := []string{"dog"}
 		os.Setenv("TEST_VALUE", "")
-		a := AsSplice().TrySetByEnv("TEST_VALUE").DefaultTo([]string{"dog"}).Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected \"%v\", got \"%v\"", e, a)
+		a := AsSlice().TrySetByEnv("TEST_VALUE").DefaultTo([]string{"dog"}).Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().TrySetByEnv(cat).SetTo(dog)", func(t *testing.T) {
+	t.Run("AsSlice().TrySetByEnv(cat).SetValue(dog)", func(t *testing.T) {
 		e := []string{"dog"}
 		os.Setenv("TEST_VALUE", "cat")
-		a := AsSplice().TrySetByEnv("TEST_VALUE").SetTo([]string{"dog"}).Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected \"%v\", got \"%v\"", e, a)
+		a := AsSlice().TrySetByEnv("TEST_VALUE").SetValue([]string{"dog"}).Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().SetTo(cat).SetTo(dog)", func(t *testing.T) {
+	t.Run("AsSlice().SetValue(cat).SetValue(dog)", func(t *testing.T) {
 		e := []string{"dog"}
-		a := AsSplice().SetTo([]string{"cat"}).SetTo([]string{"dog"}).Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected \"%v\", got \"%v\"", e, a)
+		a := AsSlice().SetValue([]string{"cat"}).SetValue([]string{"dog"}).Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected \"%v\", got \"%v\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice()_null_is_empty", func(t *testing.T) {
-		a := AsSplice().Value()
+	t.Run("AsSlice()_null_is_empty", func(t *testing.T) {
+		a := AsSlice().Value()
 		if len(a) != 0 || cap(a) != 0 {
-			t.Errorf("AsSplice() Failed: expected empty, got \"%v\"", a)
+			t.Errorf("AsSlice() Failed: expected empty, got \"%v\"", a)
 		}
 	})
 
-	t.Run("AsSplice()_whitespace_is_empty", func(t *testing.T) {
-		a := AsSplice().TrySetByString("  ").Value()
+	t.Run("AsSlice()_whitespace_is_empty", func(t *testing.T) {
+		a := AsSlice().TrySetByString("  ").Value()
 		if len(a) != 0 || cap(a) != 0 {
-			t.Errorf("AsSplice() Failed: expected empty, got \"%v\"", a)
+			t.Errorf("AsSlice() Failed: expected empty, got \"%v\"", a)
 		}
 	})
 
-	t.Run("AsSplice()_required_panics", func(t *testing.T) {
+	t.Run("AsSlice()_required_panics", func(t *testing.T) {
 		defer func() {
 			if err := recover(); err == nil {
-				t.Error("AsSplice() Failed: expected panic")
+				t.Error("AsSlice() Failed: expected panic")
 			}
 		}()
-		AsSplice().Require() // no value is set
+		AsSlice().Require() // no value is set
 	})
 
-	t.Run("AsSplice().IsSet()_is_true", func(t *testing.T) {
-		a := AsSplice().TrySetByString("cat")
-		if !a.IsSet() {
-			t.Errorf("AsSplice() Failed: expected IsSet() to be true")
+	t.Run("AsSlice().IsValueSet()_is_true", func(t *testing.T) {
+		a := AsSlice().TrySetByString("cat")
+		if !a.IsValueSet() {
+			t.Errorf("AsSlice() Failed: expected IsSet() to be true")
 		}
 	})
 
-	t.Run("AsSplice().IsSet()_is_false", func(t *testing.T) {
-		a := AsSplice()
-		if a.IsSet() {
-			t.Errorf("AsSplice() Failed: expected IsSet() to be false")
+	t.Run("AsSlice().IsValueSet()_is_false", func(t *testing.T) {
+		a := AsSlice()
+		if a.IsValueSet() {
+			t.Errorf("AsSlice() Failed: expected IsSet() to be false")
 		}
 	})
 
-	t.Run("AsSplice().Key()_from_Name()", func(t *testing.T) {
+	t.Run("AsSlice().Key()_from_Name()", func(t *testing.T) {
 		e := "NameTest"
-		a := AsSplice().Name("NameTest").Key()
+		a := AsSlice().SetKey("NameTest").Key()
 		if a != e {
-			t.Errorf("AsSplice() Failed: expected \"%s\", got \"%s\"", e, a)
+			t.Errorf("AsSlice() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().Key()_from_TrySetByEnv()", func(t *testing.T) {
+	t.Run("AsSlice().Key()_from_TrySetByEnv()", func(t *testing.T) {
 		e := "TEST_VALUE"
 		os.Setenv("TEST_VALUE", "good")
-		a := AsSplice().TrySetByEnv("TEST_VALUE").Key()
+		a := AsSlice().TrySetByEnv("TEST_VALUE").Key()
 		if a != e {
-			t.Errorf("AsSplice() Failed: expected \"%s\", got \"%s\"", e, a)
+			t.Errorf("AsSlice() Failed: expected \"%s\", got \"%s\"", e, a)
 		}
 	})
 
-	t.Run("AsSplice().TrySetTo(cat).Clear().TrySetTo(dog)", func(t *testing.T) {
+	t.Run("AsSlice().TrySetTo(cat).Clear().TrySetTo(dog)", func(t *testing.T) {
 		e := []string{"dog"}
-		a := AsSplice().TrySetByString("cat").Clear().TrySetByString("dog").Value()
-		if !reflect.DeepEqual(e, a) {
-			t.Errorf("AsSplice() Failed: expected %v, got %v", e, a)
+		a := AsSlice().TrySetByString("cat").Clear().TrySetByString("dog").Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected %v, got %v", e, a)
 		}
 	})
 
-	t.Run("AsSplice().TrySetTo(cat).Clear().IsSet()", func(t *testing.T) {
-		a := AsSplice().TrySetByString("cat").Clear()
-		if a.IsSet() {
-			t.Errorf("AsSplice() Failed: expected IsSet() to be false")
+	t.Run("AsSlice().TrySetTo(cat).Clear().IsValueSet()", func(t *testing.T) {
+		a := AsSlice().TrySetByString("cat").Clear()
+		if a.IsValueSet() {
+			t.Errorf("AsSlice() Failed: expected IsValueSet() to be false")
+		}
+	})
+
+	t.Run("AsSlice().UseDelimiter(;).TrySetByString(cat; dog ; bear;)", func(t *testing.T) {
+		e := []string{"cat", "dog", "bear"}
+		a := AsSlice().UseDelimiter(";").TrySetByString("cat; dog ; bear;").Value()
+		if !areSlicesEqual(e, a) {
+			t.Errorf("AsSlice() Failed: expected %v, got %v", e, a)
 		}
 	})
 
 }
 
-func ExampleAsSplice() {
+func ExampleAsSlice() {
 	// NOTE: this tests the Print() functionality
 
-	AsSplice().Name("TEST_01").TrySetByString("cat,dog").Print()
+	AsSlice().SetKey("TEST_01").TrySetByString("cat,dog").Print()
 	os.Setenv("TEST_VALUE", " cat, blue dog, bear ")
-	AsSplice().Name("TEST_02").TrySetByEnv("TEST_VALUE").Print()
+	AsSlice().SetKey("TEST_02").TrySetByEnv("TEST_VALUE").Print()
 	os.Setenv("TEST_VALUE", "bird")
-	AsSplice().TrySetByEnv("TEST_VALUE").Print()
-	AsSplice().Name("TEST_04").TrySetByString("squirrel").PrintMasked()
-	AsSplice().Name("TEST_05").PrintMasked()
+	AsSlice().TrySetByEnv("TEST_VALUE").Print()
+	AsSlice().SetKey("TEST_04").TrySetByString("squirrel").PrintMasked()
+	AsSlice().SetKey("TEST_05").PrintMasked()
 
 	// Output:
-	// TEST_01 = [cat dog]
-	// TEST_02 = [cat blue dog bear]
-	// TEST_VALUE = [bird]
-	// TEST_04 = (set)
-	// TEST_05 = (not-set)
+	//   TEST_01 = [cat dog]
+	//   TEST_02 = [cat blue dog bear]
+	//   TEST_VALUE = [bird]
+	//   TEST_04 = (set)
+	//   TEST_05 = (not-set)
 }
 
 type Color int
@@ -1042,10 +1055,10 @@ func ExampleAsIntForEnum() {
 		"green":  int(Green),
 	}
 
-	AsInt().Name("TEST_01").TrySetByString("yellow").Lookup(enum).PrintLookup(enum)
+	AsInt().SetKey("TEST_01").TrySetByString("yellow").Lookup(enum).PrintLookup(enum)
 
 	// Output:
-	// TEST_01 = yellow
+	//   TEST_01 = yellow
 }
 
 func TestAsDuration(t *testing.T) {
@@ -1077,9 +1090,9 @@ func TestAsDuration(t *testing.T) {
 
 	t.Run("AsDuration().Transform", func(t *testing.T) {
 		e := 21 * time.Hour
-		a := AsDuration().Transform(func(chain *DurationChain) {
-			if !chain.IsSet() {
-				chain.SetTo(21 * time.Hour)
+		a := AsDuration().Transform(func(chain *TimeDurationChain) {
+			if !chain.IsValueSet() {
+				chain.SetValue(21 * time.Hour)
 			}
 		}).Value()
 		if a != e {
@@ -1118,10 +1131,10 @@ func TestAsDuration(t *testing.T) {
 	t.Run("AsDuration().TrySetByEnv(cat).Transform", func(t *testing.T) {
 		e := 24 * time.Hour
 		os.Setenv("TEST_VALUE", "cat")
-		a := AsDuration().TrySetByEnv("TEST_VALUE").Transform(func(chain *DurationChain) {
+		a := AsDuration().TrySetByEnv("TEST_VALUE").Transform(func(chain *TimeDurationChain) {
 			val := chain.StringValue()
 			if val == "cat" {
-				chain.SetTo(24 * time.Hour)
+				chain.SetValue(24 * time.Hour)
 			}
 		}).Value()
 		if a != e {
@@ -1129,17 +1142,17 @@ func TestAsDuration(t *testing.T) {
 		}
 	})
 
-	t.Run("AsDuration().TrySetTo(15m).TrySetTo(17h)", func(t *testing.T) {
+	t.Run("AsDuration().TrySetValue(15m).TrySetValue(17h)", func(t *testing.T) {
 		e := 15 * time.Minute
-		a := AsDuration().TrySetTo(15 * time.Minute).TrySetTo(17 * time.Hour).Value()
+		a := AsDuration().TrySetValue(15 * time.Minute).TrySetValue(17 * time.Hour).Value()
 		if a != e {
 			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
 		}
 	})
 
-	t.Run("AsDuration().TrySetTo(15m).SetTo(17h)", func(t *testing.T) {
+	t.Run("AsDuration().TrySetValue(15m).SetValue(17h)", func(t *testing.T) {
 		e := 17 * time.Hour
-		a := AsDuration().TrySetTo(15 * time.Minute).SetTo(17 * time.Hour).Value()
+		a := AsDuration().TrySetValue(15 * time.Minute).SetValue(17 * time.Hour).Value()
 		if a != e {
 			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
 		}
@@ -1162,23 +1175,23 @@ func TestAsDuration(t *testing.T) {
 		AsDuration().Require() // no value is set
 	})
 
-	t.Run("AsDuration().IsSet()_is_true", func(t *testing.T) {
+	t.Run("AsDuration().IsValueSet()_is_true", func(t *testing.T) {
 		a := AsDuration().DefaultTo(15 * time.Minute)
-		if !a.IsSet() {
-			t.Errorf("AsDuration() Failed: expected IsSet() to be true")
+		if !a.IsValueSet() {
+			t.Errorf("AsDuration() Failed: expected IsValueSet() to be true")
 		}
 	})
 
-	t.Run("AsDuration().IsSet()_is_false", func(t *testing.T) {
+	t.Run("AsDuration().IsValueSet()_is_false", func(t *testing.T) {
 		a := AsDuration()
-		if a.IsSet() {
-			t.Errorf("AsDuration() Failed: expected IsSet() to be false")
+		if a.IsValueSet() {
+			t.Errorf("AsDuration() Failed: expected IsValueSet() to be false")
 		}
 	})
 
-	t.Run("AsDuration().Key()_from_Name()", func(t *testing.T) {
+	t.Run("AsDuration().SetKey()", func(t *testing.T) {
 		e := "NameTest"
-		a := AsDuration().Name("NameTest").Key()
+		a := AsDuration().SetKey("NameTest").Key()
 		if a != e {
 			t.Errorf("AsDuration() Failed: expected %s, got %s", e, a)
 		}
@@ -1193,18 +1206,18 @@ func TestAsDuration(t *testing.T) {
 		}
 	})
 
-	t.Run("AsDuration().TrySetTo(10s).Clear().TrySetTo(11m)", func(t *testing.T) {
+	t.Run("AsDuration().TrySetValue(10s).Clear().TrySetValue(11m)", func(t *testing.T) {
 		e := 11 * time.Minute
-		a := AsDuration().TrySetTo(10 * time.Second).Clear().TrySetTo(11 * time.Minute).Value()
+		a := AsDuration().TrySetValue(10 * time.Second).Clear().TrySetValue(11 * time.Minute).Value()
 		if a != e {
 			t.Errorf("AsDuration() Failed: expected %v, got %v", e, a)
 		}
 	})
 
-	t.Run("AsDuration().TrySetTo(true).Clear().IsSet()", func(t *testing.T) {
-		a := AsDuration().TrySetTo(11 * time.Second).Clear()
-		if a.IsSet() {
-			t.Errorf("AsDuration() Failed: expected IsSet() to be false")
+	t.Run("AsDuration().TrySetValue(true).Clear().IsValueSet()", func(t *testing.T) {
+		a := AsDuration().TrySetValue(11 * time.Second).Clear()
+		if a.IsValueSet() {
+			t.Errorf("AsDuration() Failed: expected IsValueSet() to be false")
 		}
 	})
 
@@ -1213,20 +1226,20 @@ func TestAsDuration(t *testing.T) {
 func ExampleAsDuration() {
 	// NOTE: this tests the Print() functionality
 
-	AsDuration().Name("TEST_01").TrySetByString("15h13m2s").Print()
+	AsDuration().SetKey("TEST_01").TrySetByString("15h13m2s").Print()
 	os.Setenv("TEST_VALUE", "13m")
-	AsDuration().Name("TEST_02").TrySetByEnv("TEST_VALUE").Print()
+	AsDuration().SetKey("TEST_02").TrySetByEnv("TEST_VALUE").Print()
 	os.Setenv("TEST_VALUE", "17h")
 	AsDuration().TrySetByEnv("TEST_VALUE").Print()
-	AsDuration().Name("TEST_04").SetTo(time.Duration(15 * time.Minute)).PrintMasked()
-	AsDuration().Name("TEST_05").PrintMasked()
+	AsDuration().SetKey("TEST_04").SetValue(time.Duration(15 * time.Minute)).PrintMasked()
+	AsDuration().SetKey("TEST_05").PrintMasked()
 
 	// Output:
-	// TEST_01 = 15h13m2s
-	// TEST_02 = 13m0s
-	// TEST_VALUE = 17h0m0s
-	// TEST_04 = (set)
-	// TEST_05 = (not-set)
+	//   TEST_01 = 15h13m2s
+	//   TEST_02 = 13m0s
+	//   TEST_VALUE = 17h0m0s
+	//   TEST_04 = (set)
+	//   TEST_05 = (not-set)
 }
 
 func TestIfThenElse(t *testing.T) {
@@ -1265,3 +1278,4 @@ func TestResolveAll(t *testing.T) {
 // TODO: add tests for Key Vault and AppConfig using mocks
 // TODO: add tests for Clamp()
 // TODO: add tests for delimiter
+// TODO: add tests for Empty()
