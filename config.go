@@ -280,6 +280,27 @@ func ResolveAll(ctx context.Context, list []*StringChain) *sync.WaitGroup {
 	return wg
 }
 
+func areSlicesEqual(a []string, b []string) bool {
+	if len(a) == len(b) {
+
+		// shortcut as they are both 0
+		if len(a) == 0 {
+			return true
+		}
+
+		// check the values
+		for i := range a {
+			if a[i] != b[i] {
+				return false
+			}
+		}
+
+		return true
+	} else {
+		return false
+	}
+}
+
 func Startup(ctx context.Context) (err error) {
 
 	// load from dotenv
@@ -301,7 +322,7 @@ func Startup(ctx context.Context) (err error) {
 	}
 	config.GOCONFIG_AUTH_MODE = authMode(AsInt().TrySetByEnv("GOCONFIG_AUTH_MODE").Lookup(table).Clamp(0, 1).DefaultTo(0).PrintLookup(table).Value())
 	config.GOCONFIG_APPCONFIG = AsString().TrySetByEnv("GOCONFIG_APPCONFIG").Transform(func(chain *StringChain) {
-		if chain.IsSet() {
+		if chain.IsValueSet() {
 			val := strings.ToLower(chain.Value())
 			if !strings.HasPrefix(val, "https://") {
 				val = "https://" + val
@@ -312,10 +333,10 @@ func Startup(ctx context.Context) (err error) {
 			if !strings.HasSuffix(val, ".azconfig.io") {
 				val += ".azconfig.io"
 			}
-			chain.SetTo(val)
+			chain.SetValue(val)
 		}
 	}).Print().Value()
-	config.GOCONFIG_CONFIG_KEYS = AsSplice().TrySetByEnv("GOCONFIG_CONFIG_KEYS").Print().Value()
+	config.GOCONFIG_CONFIG_KEYS = AsSlice().TrySetByEnv("GOCONFIG_CONFIG_KEYS").Print().Value()
 
 	// load from appconfig
 	if len(config.GOCONFIG_APPCONFIG) > 0 && len(config.GOCONFIG_CONFIG_KEYS) > 0 {

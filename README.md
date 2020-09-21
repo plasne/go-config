@@ -6,7 +6,23 @@ Every application has to handle common scenarios like configuration management. 
 
 ## Why environment variables over flags
 
-???
+Generally I use environment variables for configuration of services (things running on a server somewhere) and flags for configuration of tools (command line tools that a user runs).
+
+Many platforms have a native way of managing environment variables. For example, Kubernetes allows them to be defined in the manifest and even supports setting secrets from a vault, Azure App Service sets configuration settings as environment variables, a Dockerfile can contain ENV and supports override, and so on.
+
+I don't like hardcoding values. If there is a some choice to be made about what to hardcode a variable as (ex. concurrency, thresholds, etc.), I make an environment variable for that option and default it. This allows me to easily performance tune the application in different environments later. Doing this means a robust service could have dozens or even hundreds of configuration points, but you may only have to set a very small number to have a working solution.
+
+While developing an application locally, it can be very handy to put a lot of configuration settings into a .env file (supported out-of-the-box) and then .gitignore that file. This gives you an easy way to work with a lot of configuration options during development (even secrets) without checking them in. You can just put an underscore in front of specific variables to disable them. Or you could have multiple .env files with different configurations for testing.
+
+:warning: A colleague raised a concern about environment variables being buried throughout the code introducing an element of "magic" because it may be difficult to determine what settings are available and how they are set. I agree, I would recommend 3 mitigations:
+
+* Always set your entire configuration at startup (ie. all envs are set in one place) - I like to use init().
+
+* Always put your entire configuration into a configuration struct (ie. there are no mystery settings).
+
+* Always print the configuration at startup (ie. there is no confusion on what configuration was used or how variables were interrogate and transformed).
+
+The complete sample at the bottom of this guide shows an implementation of this.
 
 ## Installation
 
@@ -38,6 +54,16 @@ func main() {
 }
 ```
 
+## Build
+
+If you make any changes to AsDataType.go, you must generate gen-AsDataType.go again using <https://github.com/cheekybits/genny>.
+
+To generate, you need to...
+
+```bash
+go generate
+```
+
 ## Common Scenarios
 
 This shows some common scenarios to get you started. The next section details all options and a complete sample is available at the bottom of this page.
@@ -49,6 +75,7 @@ STORAGE_ACCOUNT := goconfig.AsString().TrySetByEnv("STORAGE_ACCOUNT").Print().Re
 
 // SCENARIO: set a password
 // pull a string value from an environment variable, potentially resolve it in Key Vault, print whether or not it was set, panic() if not supplied, set the variable to the value
+ctx := context.Background()
 STORAGE_KEY := goconfig.AsString().TrySetByEnv("STORAGE_KEY").Resolve(ctx).PrintMasked().Require().Value()
 
 // SCENARIO: set a reasonable numeric value
@@ -67,10 +94,17 @@ table := map[string]int{
 }
 GOCONFIG_AUTH_MODE := authMode(AsInt().TrySetByEnv("GOCONFIG_AUTH_MODE").Lookup(table).Clamp(0, 1).DefaultTo(0).PrintLookup(table).Value())
 
+// SCENARIO: allow a flag to override the env
+// try to set based on the flag (if it is 0 - it won't be set), try to set by env var, default to 8 if neither worked, clamp between 1 and 256, print the value, set the variable to the value
+var concurrency int
+flag.IntVar(&concurrency, "concurrency", 0, "Sets the number of calls made in parallel for table operations.")
+flag.Parse()
+CONCURRENCY := goconfig.AsInt().TrySetValue(concurrency).TrySetByEnv("CONCURRENCY").DefaultTo(8).Clamp(1, 256).Print().Value()
+
 // SCENARIO: transform a value that may not be in the right format
 // pull a string value from an environment variable, if the value is set - transform it into a URL if it isn't already, print it, set the variable to the value
 GOCONFIG_APPCONFIG := AsString().TrySetByEnv("GOCONFIG_APPCONFIG").Transform(func(chain *StringChain) {
-	if chain.IsSet() {
+	if chain.IsValueSet() {
 		val := strings.ToLower(chain.Value())
 		if !strings.HasPrefix(val, "https://") {
 			val = "https://" + val
@@ -81,14 +115,14 @@ GOCONFIG_APPCONFIG := AsString().TrySetByEnv("GOCONFIG_APPCONFIG").Transform(fun
 		if !strings.HasSuffix(val, ".azconfig.io") {
 			val += ".azconfig.io"
 		}
-		chain.SetTo(val)
+		chain.SetValue(val)
 	}
 }).Print().Value()
 
 // SCENARIO: only accept a URL
 // pull a string value from an environment variable, clear it if it isn't a URL, print it, set the variable to the value
 URL := AsString().TrySetByEnv("URL").Transform(func(chain *StringChain) {
-	if chain.IsSet() {
+	if chain.IsValueSet() {
 		val := strings.ToLower(chain.Value())
 		if !strings.HasPrefix(val, "http://") && !strings.HasPrefix(val, "https://") {
 			chain.Clear()
@@ -97,46 +131,50 @@ URL := AsString().TrySetByEnv("URL").Transform(func(chain *StringChain) {
 }).Print().Value()
 
 // SCENARIO: parse an int from a string obtained some other way
-// set a name so print knows how to show it, try to parse a string into an int, print it, set the variable to the value
+// set a key so print knows how to show it, try to parse a string into an int, print it, set the variable to the value
 // OUTPUT: VALUE = 17
-VALUE := AsInt().Name("VALUE").TrySetByString("17").Print().Value()
+VALUE := AsInt().SetKey("VALUE").TrySetByString("17").Print().Value()
 
-// SCENARIO: parse a string into a splice
-// set a name so print knows how to show it, try to parse a string into a splice, print it, set the variable to the value
-// OUTPUT: SPLICE = [dog cat bear]
-SPLICE := AsSplice().Name("SPLICE").UseDelimiter(";").TrySetByString("dog; cat; bear;").Print().Value()
+// SCENARIO: parse a string into a slice
+// set a key so print knows how to show it, try to parse a string into a slice, print it, set the variable to the value
+// OUTPUT: SLICE = [dog cat bear]
+SLICE := AsSlice().SetKey("SLICE").UseDelimiter(";").TrySetByString("dog; cat; bear;").Print().Value()
 ```
 
 ## Datatypes and Methods
 
 The following datatypes are supported:
 
-| Method | Golang datatype | Empty Default | Methods | Notes |
+| Method | Golang datatype | Empty | Methods | Notes |
 | ---- | ---- | ---- | ---- | ---- |
 | AsInt() | int | 0 | Offers Clamp(), PrintLookup(). | |
 | AsFloat() | float64 | 0.0 | Offers Clamp(). | |
-| AsString() | string | "" | Offers AllowEmpty(). Excludes TrySetByString(), StringValue(). | Has no separate strval and value. |
+| AsString() | string | "" | | strval and value are always the same. |
 | AsBool() | bool | false | | Supports true, yes, y, or 1 for TRUE. Supports false, no, n, or 0 for FALSE. |
 | AsDuration() | time.Duration | time.Duration(0) | | |
-| AsSplice() | []string | []string{} cap=0, len=0 | Offers UseDelimiter(). | Delimited on comma by default. Whitespace is trimmed from the left and right of each entry. |
+| AsSlice() | []string | []string{} cap=0, len=0 | Offers UseDelimiter(). | Delimited on comma by default. Whitespace is trimmed from the left and right of each entry. |
 
-Before we get into the chain, there is an important concept. All of the datatypes have storage for name, strval, and value except AsString() (which only has a name and value since strval would be the same as value). The strval is set the first time a non-empty string is provided. The value is set the first time a string is provided that can be parsed successfully or a method provides a value in the datatype natively. The strval is useful for methods like Lookup() and Transform() that might want to deal with some kind of label that will be translated into a value of the appropriate datatype. The name is only used for Print() to show a meaningful key/value pair.
+Before we get into the chain, there is an important concept. All of the datatypes have storage for name, strval, and value. The strval is set the first time a non-empty string is provided. The value is set the first time a string is provided that can be parsed successfully or a method provides a value in the datatype natively. The strval is useful for methods like Lookup() and Transform() that might want to deal with some kind of label that will be translated into a value of the appropriate datatype. The name is only used for Print() to show a meaningful key/value pair.
 
 Each of the datatype methods will start a chain that allows for any number of the following:
 
-* __Name(name string)__ - You supply a name for the chain which will show as the key in the key/value pair that is shown by Print(). If you aren't going to Print(), you don't need to specify a name.
+* __SetKey(name string)__ - You supply a name for the chain which will show as the key in the key/value pair that is shown by Print(). If you aren't going to Print(), you don't need to specify a key.
 
-* __TrySetByEnv(name string)__ - You supply the name of an environment variable. If there is not a name specified, name will be set as provided to this method. This method will read the environment variable of the specified name as a string and store it as strval provided the string is non-empty and strval has not set already. If a value has not been set yet, it will then attempt to parse the string to the specified datatype. If successful, the value will be set. To clarify, this method attempts to set the name, strval, and value independently.
+* __SetStringValue(value string)__ - You supply a string and this method sets strval.
 
-* __TrySetTo(value datatype)__ - You supply a value in the appropriate datatype. If a value has not been set yet, it will be set to this value.
+* __SetValue(value datatype)__ - You supply a value in the appropriate datatype. The value is set to the provided value regardless of whether or not it has been previously set.
+
+* __SetEmpty(value datatype)__ - You supply a value in the appropriate datatype. When you call any of the Try-prefixed methods, this module only sets the value if the value provided is not empty. The SetEmpty() method allows you to change the definition of empty from what is shown in the datatype table above. For example, you might want an int's default to be -1 if 0 is a legitimate value.
+
+* __Clear()__ - This clears the value if it is set. It has no impact on name or strval. The primary purpose of this method is to revoke a set value in a Transform().
+
+* __TrySetValue(value datatype)__ - You supply a value in the appropriate datatype. If a value has not been set yet, it will be set to this value.
 
 * __DefaultTo(value datatype)__ - This is simply an alias for TrySetTo().
 
+* __TrySetByEnv(name string)__ - You supply the name of an environment variable. If there is not a name specified, name will be set as provided to this method. This method will read the environment variable of the specified name as a string and store it as strval provided the string is non-empty and strval has not set already. If a value has not been set yet, it will then attempt to parse the string to the specified datatype. If successful, the value will be set. To clarify, this method attempts to set the name, strval, and value independently.
+
 * __TrySetByString(value string)__ - You supply a string value. If a strval has not been set yet, this method will store it as strval provided the string is non-empty. If a value has not been set yet, it will then attempt to parse the string to the specified datatype. If successful, the value will be set. To clarify, this method attempts to set the strval and value independently. AsString() does not have this method, you can use TrySetTo() instead.
-
-* __SetTo(value datatype)__ - You supply a value in the appropriate datatype. The value is set to the provided value regardless of whether or not it has been previously set.
-
-* __Clear()__ - This clears the value if it is set. It has no impact on name or strval. The primary purpose of this method is to revoke a set value in a Transform().
 
 * __Lookup(map[string]datatype)__ - You specify a map. The strval (or value for AsString()) is used as the key to return a value of the specified datatype. The chain has its value set to the found value even if it was previously set. If strval was not set or a match was not found, this method changes nothing. The key is tried with its provided casing and as all lowercase.
 
@@ -154,9 +192,7 @@ Each of the datatype methods will start a chain that allows for any number of th
 
 * __Clamp(min datatype, max datatype)__ - This is only available on numeric types (AsInt() and AsFloat()). You supply a minimum and maximum value and if the value is set, it is fixed inside this range.
 
-* __AllowEmpty()__ - This is only available on AsString(). It was previously mentioned that TrySetByEnv() and TrySetTo() do not accept empty strings to set the value. However, if this method is called, they will be accepted. The SetTo() method will always allow an empty string to be accepted to set the value regardless of this setting.
-
-* __UseDelimiter(delimiter string)__ - This is only available on AsSplice(). You supply a delimiter to use instead of comma to separate a provided string into a splice.
+* __UseDelimiter(delimiter string)__ - This is only available on AsSlice(). You supply a delimiter to use instead of comma to separate a provided string into a slice.
 
 The chain can be completed with any of these (but they do not continue the chain):
 
@@ -164,9 +200,11 @@ The chain can be completed with any of these (but they do not continue the chain
 
 * __Value()__ - This returns the value in the specified datatype. If a value is not set, an empty value will be returned.
 
-* __IsSet()__ - This returns true or false depending on whether the value is set in the specified datatype. This is most commonly used in Transform().
+* __StringValue()__ - This returns the strval if it is set or an empty string if it wasn't. This is most commonly used in Transform().
 
-* __StringValue()__ - This returns the strval if it is set or an empty string if it wasn't. This is most commonly used in Transform(). This is not available on AsString().
+* __IsValueSet()__ - This returns true or false depending on whether the value is set for the specified datatype. This is most commonly used in Transform().
+
+* __IsStringValueSet()__ - This returns true or false depending on whether the strval is set. This is most commonly used in Transform().
 
 ## Startup()
 
@@ -334,6 +372,8 @@ CONFIGURATION:
 
 There are some things I would like to expand in the future, including...
 
-* Finish unit tests including mocks
+* Finish unit tests including mocks.
 
 * "Clamp" for strings, ie. some way to ensure the value is within a specific list.
+
+* Support loading .env which allows you to specify another .env file to load.
