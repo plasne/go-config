@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-//go:generate $HOME/go/bin/genny -in=$GOFILE -out=gen-$GOFILE gen "String=string,int,float64,bool,Slice,time.Duration"
-
 type StringChain struct {
 	IChain
 	key      *string
@@ -112,6 +110,29 @@ func (chain *StringChain) Transform(f func(*StringChain)) *StringChain {
 	return chain
 }
 
+// EnsureOneOf() clears strval and value if strval is not one of the selected options.
+func (chain *StringChain) EnsureOneOf(options ...string) *StringChain {
+
+	// use the value or empty to evaluate
+	strval := chain.StringValue()
+
+	// look for a match
+	found := false
+	for i := 0; i < len(options); i++ {
+		if options[i] == strval {
+			found = true
+		}
+	}
+
+	// if not found, clear strval and value
+	if !found {
+		chain.strval = nil
+		chain.value = nil
+	}
+
+	return chain
+}
+
 func (chain *StringChain) Resolve(ctx context.Context) *StringChain {
 	if chain.strval != nil {
 		val, err := resolve(ctx, *chain.strval)
@@ -179,8 +200,6 @@ func (chain *StringChain) StringValue() string {
 		return *chain.strval
 	}
 }
-
-//go:generate $HOME/go/bin/genny -in=$GOFILE -out=gen-$GOFILE gen "Int=string,int,float64,bool,Slice,time.Duration"
 
 type IntChain struct {
 	IChain
@@ -280,6 +299,29 @@ func (chain *IntChain) Transform(f func(*IntChain)) *IntChain {
 	return chain
 }
 
+// EnsureOneOf() clears strval and value if strval is not one of the selected options.
+func (chain *IntChain) EnsureOneOf(options ...string) *IntChain {
+
+	// use the value or empty to evaluate
+	strval := chain.StringValue()
+
+	// look for a match
+	found := false
+	for i := 0; i < len(options); i++ {
+		if options[i] == strval {
+			found = true
+		}
+	}
+
+	// if not found, clear strval and value
+	if !found {
+		chain.strval = nil
+		chain.value = nil
+	}
+
+	return chain
+}
+
 func (chain *IntChain) Resolve(ctx context.Context) *IntChain {
 	if chain.strval != nil {
 		val, err := resolve(ctx, *chain.strval)
@@ -347,8 +389,6 @@ func (chain *IntChain) StringValue() string {
 		return *chain.strval
 	}
 }
-
-//go:generate $HOME/go/bin/genny -in=$GOFILE -out=gen-$GOFILE gen "Float64=string,int,float64,bool,Slice,time.Duration"
 
 type Float64Chain struct {
 	IChain
@@ -448,6 +488,29 @@ func (chain *Float64Chain) Transform(f func(*Float64Chain)) *Float64Chain {
 	return chain
 }
 
+// EnsureOneOf() clears strval and value if strval is not one of the selected options.
+func (chain *Float64Chain) EnsureOneOf(options ...string) *Float64Chain {
+
+	// use the value or empty to evaluate
+	strval := chain.StringValue()
+
+	// look for a match
+	found := false
+	for i := 0; i < len(options); i++ {
+		if options[i] == strval {
+			found = true
+		}
+	}
+
+	// if not found, clear strval and value
+	if !found {
+		chain.strval = nil
+		chain.value = nil
+	}
+
+	return chain
+}
+
 func (chain *Float64Chain) Resolve(ctx context.Context) *Float64Chain {
 	if chain.strval != nil {
 		val, err := resolve(ctx, *chain.strval)
@@ -515,8 +578,6 @@ func (chain *Float64Chain) StringValue() string {
 		return *chain.strval
 	}
 }
-
-//go:generate $HOME/go/bin/genny -in=$GOFILE -out=gen-$GOFILE gen "Bool=string,int,float64,bool,Slice,time.Duration"
 
 type BoolChain struct {
 	IChain
@@ -616,6 +677,29 @@ func (chain *BoolChain) Transform(f func(*BoolChain)) *BoolChain {
 	return chain
 }
 
+// EnsureOneOf() clears strval and value if strval is not one of the selected options.
+func (chain *BoolChain) EnsureOneOf(options ...string) *BoolChain {
+
+	// use the value or empty to evaluate
+	strval := chain.StringValue()
+
+	// look for a match
+	found := false
+	for i := 0; i < len(options); i++ {
+		if options[i] == strval {
+			found = true
+		}
+	}
+
+	// if not found, clear strval and value
+	if !found {
+		chain.strval = nil
+		chain.value = nil
+	}
+
+	return chain
+}
+
 func (chain *BoolChain) Resolve(ctx context.Context) *BoolChain {
 	if chain.strval != nil {
 		val, err := resolve(ctx, *chain.strval)
@@ -683,8 +767,6 @@ func (chain *BoolChain) StringValue() string {
 		return *chain.strval
 	}
 }
-
-//go:generate $HOME/go/bin/genny -in=$GOFILE -out=gen-$GOFILE gen "Slice=string,int,float64,bool,Slice,time.Duration"
 
 type SliceChain struct {
 	IChain
@@ -784,6 +866,29 @@ func (chain *SliceChain) Transform(f func(*SliceChain)) *SliceChain {
 	return chain
 }
 
+// EnsureOneOf() clears strval and value if strval is not one of the selected options.
+func (chain *SliceChain) EnsureOneOf(options ...string) *SliceChain {
+
+	// use the value or empty to evaluate
+	strval := chain.StringValue()
+
+	// look for a match
+	found := false
+	for i := 0; i < len(options); i++ {
+		if options[i] == strval {
+			found = true
+		}
+	}
+
+	// if not found, clear strval and value
+	if !found {
+		chain.strval = nil
+		chain.value = nil
+	}
+
+	return chain
+}
+
 func (chain *SliceChain) Resolve(ctx context.Context) *SliceChain {
 	if chain.strval != nil {
 		val, err := resolve(ctx, *chain.strval)
@@ -851,8 +956,6 @@ func (chain *SliceChain) StringValue() string {
 		return *chain.strval
 	}
 }
-
-//go:generate $HOME/go/bin/genny -in=$GOFILE -out=gen-$GOFILE gen "TimeDuration=string,int,float64,bool,Slice,time.Duration"
 
 type TimeDurationChain struct {
 	IChain
@@ -949,6 +1052,29 @@ func (chain *TimeDurationChain) Lookup(lookup map[string]time.Duration) *TimeDur
 
 func (chain *TimeDurationChain) Transform(f func(*TimeDurationChain)) *TimeDurationChain {
 	f(chain)
+	return chain
+}
+
+// EnsureOneOf() clears strval and value if strval is not one of the selected options.
+func (chain *TimeDurationChain) EnsureOneOf(options ...string) *TimeDurationChain {
+
+	// use the value or empty to evaluate
+	strval := chain.StringValue()
+
+	// look for a match
+	found := false
+	for i := 0; i < len(options); i++ {
+		if options[i] == strval {
+			found = true
+		}
+	}
+
+	// if not found, clear strval and value
+	if !found {
+		chain.strval = nil
+		chain.value = nil
+	}
+
 	return chain
 }
 

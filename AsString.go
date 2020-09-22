@@ -26,10 +26,21 @@ func (chain *StringChain) afterSetEmpty() {
 }
 
 func (chain *StringChain) trySetStringValue(value string) {
+
+	// make sure it isn't empty
 	value = strings.Trim(value, " ")
-	if value != *chain.empty {
-		chain.value = &value
+	if value == *chain.empty {
+		return
 	}
+
+	// set if there is not already a strval
+	if chain.strval == nil {
+		chain.strval = &value
+	}
+
+	// set the value
+	chain.value = &value
+
 }
 
 func (chain *StringChain) isEmpty(value string) bool {
