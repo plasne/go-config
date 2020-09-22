@@ -38,7 +38,7 @@ type preconfig struct {
 
 var config preconfig
 
-func applyAuthorizer(client *autorest.Client, resource string) (err error) {
+func ApplyAuthorizer(client *autorest.Client, resource string) (err error) {
 
 	// select
 	var authorizer autorest.Authorizer
@@ -108,7 +108,7 @@ func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (va
 
 		// create/authorize the client
 		client := &autorest.Client{}
-		err = applyAuthorizer(client, config.GOCONFIG_APPCONFIG)
+		err = ApplyAuthorizer(client, config.GOCONFIG_APPCONFIG)
 		if err != nil {
 			return
 		}
@@ -217,7 +217,7 @@ func resolve(ctx context.Context, url string) (val string, err error) {
 
 	// create/authorize the client
 	client := &autorest.Client{}
-	err = applyAuthorizer(client, "https://vault.azure.net")
+	err = ApplyAuthorizer(client, "https://vault.azure.net")
 	if err != nil {
 		return
 	}

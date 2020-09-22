@@ -9,7 +9,7 @@ import (
 	"github.com/cheekybits/genny/generic"
 )
 
-//go:generate $HOME/go/bin/genny -in=$GOFILE -out=gen-$GOFILE gen "DataType=string,int,float64,bool,Slice,time.Duration"
+//go:generate genny -in=$GOFILE -out=gen-$GOFILE gen "DataType=string,int,float64,bool,Slice,time.Duration"
 
 type DataType generic.Type
 
@@ -108,6 +108,29 @@ func (chain *DataTypeChain) Lookup(lookup map[string]DataType) *DataTypeChain {
 
 func (chain *DataTypeChain) Transform(f func(*DataTypeChain)) *DataTypeChain {
 	f(chain)
+	return chain
+}
+
+// EnsureOneOf() clears strval and value if strval is not one of the selected options.
+func (chain *DataTypeChain) EnsureOneOf(options ...string) *DataTypeChain {
+
+	// use the value or empty to evaluate
+	strval := chain.StringValue()
+
+	// look for a match
+	found := false
+	for i := 0; i < len(options); i++ {
+		if options[i] == strval {
+			found = true
+		}
+	}
+
+	// if not found, clear strval and value
+	if !found {
+		chain.strval = nil
+		chain.value = nil
+	}
+
 	return chain
 }
 
