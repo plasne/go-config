@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -134,9 +133,9 @@ func (chain *DataTypeChain) EnsureOneOf(options ...string) *DataTypeChain {
 	return chain
 }
 
-func (chain *DataTypeChain) Resolve(ctx context.Context) *DataTypeChain {
+func (chain *DataTypeChain) Resolve() *DataTypeChain {
 	if chain.strval != nil {
-		val, err := resolve(ctx, *chain.strval)
+		val, err := resolve(*chain.strval)
 		if err != nil {
 			panic(err)
 		}

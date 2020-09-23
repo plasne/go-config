@@ -5,7 +5,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -133,9 +132,9 @@ func (chain *StringChain) EnsureOneOf(options ...string) *StringChain {
 	return chain
 }
 
-func (chain *StringChain) Resolve(ctx context.Context) *StringChain {
+func (chain *StringChain) Resolve() *StringChain {
 	if chain.strval != nil {
-		val, err := resolve(ctx, *chain.strval)
+		val, err := resolve(*chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -322,9 +321,9 @@ func (chain *IntChain) EnsureOneOf(options ...string) *IntChain {
 	return chain
 }
 
-func (chain *IntChain) Resolve(ctx context.Context) *IntChain {
+func (chain *IntChain) Resolve() *IntChain {
 	if chain.strval != nil {
-		val, err := resolve(ctx, *chain.strval)
+		val, err := resolve(*chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -511,9 +510,9 @@ func (chain *Float64Chain) EnsureOneOf(options ...string) *Float64Chain {
 	return chain
 }
 
-func (chain *Float64Chain) Resolve(ctx context.Context) *Float64Chain {
+func (chain *Float64Chain) Resolve() *Float64Chain {
 	if chain.strval != nil {
-		val, err := resolve(ctx, *chain.strval)
+		val, err := resolve(*chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -700,9 +699,9 @@ func (chain *BoolChain) EnsureOneOf(options ...string) *BoolChain {
 	return chain
 }
 
-func (chain *BoolChain) Resolve(ctx context.Context) *BoolChain {
+func (chain *BoolChain) Resolve() *BoolChain {
 	if chain.strval != nil {
-		val, err := resolve(ctx, *chain.strval)
+		val, err := resolve(*chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -889,9 +888,9 @@ func (chain *SliceChain) EnsureOneOf(options ...string) *SliceChain {
 	return chain
 }
 
-func (chain *SliceChain) Resolve(ctx context.Context) *SliceChain {
+func (chain *SliceChain) Resolve() *SliceChain {
 	if chain.strval != nil {
-		val, err := resolve(ctx, *chain.strval)
+		val, err := resolve(*chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -1078,9 +1077,9 @@ func (chain *TimeDurationChain) EnsureOneOf(options ...string) *TimeDurationChai
 	return chain
 }
 
-func (chain *TimeDurationChain) Resolve(ctx context.Context) *TimeDurationChain {
+func (chain *TimeDurationChain) Resolve() *TimeDurationChain {
 	if chain.strval != nil {
-		val, err := resolve(ctx, *chain.strval)
+		val, err := resolve(*chain.strval)
 		if err != nil {
 			panic(err)
 		}
