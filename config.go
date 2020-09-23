@@ -1,7 +1,7 @@
 package config
 
 import (
-	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -37,6 +37,24 @@ type preconfig struct {
 }
 
 var config preconfig
+
+var SharedHttpTransport *http.Transport
+
+func createSharedHttpTransport() *http.Transport {
+	defaultTransport := http.DefaultTransport.(*http.Transport)
+	return &http.Transport{
+		Proxy:                 defaultTransport.Proxy,
+		DialContext:           defaultTransport.DialContext,
+		MaxIdleConns:          defaultTransport.MaxIdleConns,
+		IdleConnTimeout:       defaultTransport.IdleConnTimeout,
+		TLSHandshakeTimeout:   defaultTransport.TLSHandshakeTimeout,
+		ExpectContinueTimeout: defaultTransport.ExpectContinueTimeout,
+		TLSClientConfig: &tls.Config{
+			MinVersion:    tls.VersionTLS12,
+			Renegotiation: tls.RenegotiateNever,
+		},
+	}
+}
 
 func ApplyAuthorizer(client *autorest.Client, resource string) (err error) {
 
@@ -87,7 +105,7 @@ func tryExtractUrlForKeyvaultFromAppConfigEntry(value string) string {
 
 }
 
-func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (values map[string]string, err error) {
+func load(filters []string, useFullyQualifiedName bool) (values map[string]string, err error) {
 	values = make(map[string]string)
 
 	// make sure there is something to load
@@ -101,13 +119,13 @@ func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (va
 		return
 	}
 
-	// TODO: can context apply to autorest somehow?
-
 	// request each filter
 	for _, filter := range filters {
 
 		// create/authorize the client
-		client := &autorest.Client{}
+		client := &autorest.Client{
+			Sender: &http.Client{Transport: SharedHttpTransport},
+		}
 		err = ApplyAuthorizer(client, config.GOCONFIG_APPCONFIG)
 		if err != nil {
 			return
@@ -131,6 +149,7 @@ func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (va
 		if err != nil {
 			return
 		}
+		defer resp.Body.Close()
 
 		// ensure it is something in the HTTP 200 range
 		if resp.StatusCode < 200 || resp.StatusCode > 299 {
@@ -148,7 +167,6 @@ func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (va
 		}{}
 
 		// deserialize to json
-		defer resp.Body.Close()
 		dec := json.NewDecoder(resp.Body)
 		err = dec.Decode(&result)
 		if err != nil {
@@ -173,15 +191,15 @@ func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (va
 	return
 }
 
-func Load(ctx context.Context, filters []string) (values map[string]string, err error) {
-	return load(ctx, filters, false)
+func Load(filters []string) (values map[string]string, err error) {
+	return load(filters, false)
 }
 
-func LoadFullyQualified(ctx context.Context, filters []string) (values map[string]string, err error) {
-	return load(ctx, filters, true)
+func LoadFullyQualified(filters []string) (values map[string]string, err error) {
+	return load(filters, true)
 }
 
-func Apply(ctx context.Context, filters []string) (err error) {
+func Apply(filters []string) (err error) {
 
 	// make sure there is something to apply
 	if len(filters) < 1 {
@@ -189,7 +207,7 @@ func Apply(ctx context.Context, filters []string) (err error) {
 	}
 
 	// load the values
-	values, err := load(ctx, filters, false)
+	values, err := load(filters, false)
 	if err != nil {
 		return
 	}
@@ -204,7 +222,7 @@ func Apply(ctx context.Context, filters []string) (err error) {
 	return
 }
 
-func resolve(ctx context.Context, url string) (val string, err error) {
+func resolve(url string) (val string, err error) {
 	val = url
 
 	// make sure this is a valid URL
@@ -216,7 +234,9 @@ func resolve(ctx context.Context, url string) (val string, err error) {
 	// TODO: can context apply to autorest somehow?
 
 	// create/authorize the client
-	client := &autorest.Client{}
+	client := &autorest.Client{
+		Sender: &http.Client{Transport: SharedHttpTransport},
+	}
 	err = ApplyAuthorizer(client, "https://vault.azure.net")
 	if err != nil {
 		return
@@ -239,6 +259,7 @@ func resolve(ctx context.Context, url string) (val string, err error) {
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close()
 
 	// ensure it is something in the HTTP 200 range
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
@@ -252,7 +273,6 @@ func resolve(ctx context.Context, url string) (val string, err error) {
 	}{}
 
 	// deserialize to json
-	defer resp.Body.Close()
 	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(&result)
 	if err != nil {
@@ -265,7 +285,7 @@ func resolve(ctx context.Context, url string) (val string, err error) {
 	return
 }
 
-func ResolveAll(ctx context.Context, list []*StringChain) *sync.WaitGroup {
+func ResolveAll(list []*StringChain) *sync.WaitGroup {
 	wg := new(sync.WaitGroup)
 	wg.Add(len(list))
 
@@ -273,7 +293,7 @@ func ResolveAll(ctx context.Context, list []*StringChain) *sync.WaitGroup {
 	for _, chain := range list {
 		go func(c *StringChain) {
 			defer wg.Done()
-			c.Resolve(ctx)
+			c.Resolve()
 		}(chain)
 	}
 
@@ -301,7 +321,12 @@ func areSlicesEqual(a []string, b []string) bool {
 	}
 }
 
-func Startup(ctx context.Context) (err error) {
+func Startup() (err error) {
+
+	// create a shared http transport
+	if SharedHttpTransport == nil {
+		SharedHttpTransport = createSharedHttpTransport()
+	}
 
 	// load from dotenv
 	//  NOTE: ignore *os.PathError (the file is optional)
@@ -340,7 +365,7 @@ func Startup(ctx context.Context) (err error) {
 
 	// load from appconfig
 	if len(config.GOCONFIG_APPCONFIG) > 0 && len(config.GOCONFIG_CONFIG_KEYS) > 0 {
-		err = Apply(ctx, config.GOCONFIG_CONFIG_KEYS)
+		err = Apply(config.GOCONFIG_CONFIG_KEYS)
 		if err != nil {
 			return
 		}
