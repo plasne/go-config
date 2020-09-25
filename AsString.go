@@ -47,3 +47,27 @@ func (chain *StringChain) isEmpty(value string) bool {
 	empty := *chain.empty
 	return value == empty
 }
+
+func (chain *StringChain) ToUpper() *StringChain {
+	if chain.strval != nil {
+		mod := strings.ToUpper(*chain.strval)
+		chain.strval = &mod
+	}
+	if chain.value != nil {
+		mod := strings.ToUpper(*chain.value)
+		chain.value = &mod
+	}
+	return chain
+}
+
+func (chain *StringChain) ToLower() *StringChain {
+	if chain.strval != nil {
+		mod := strings.ToLower(*chain.strval)
+		chain.strval = &mod
+	}
+	if chain.value != nil {
+		mod := strings.ToLower(*chain.value)
+		chain.value = &mod
+	}
+	return chain
+}
