@@ -1279,3 +1279,4 @@ func TestResolveAll(t *testing.T) {
 // TODO: add tests for Clamp()
 // TODO: add tests for delimiter
 // TODO: add tests for Empty()
+// TODO: add tests for ToLower() and ToUpper()

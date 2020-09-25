@@ -165,6 +165,13 @@ func (chain *DataTypeChain) Require() *DataTypeChain {
 	return chain
 }
 
+func (chain *DataTypeChain) RequireIf(clause bool) *DataTypeChain {
+	if clause && chain.value == nil {
+		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+	}
+	return chain
+}
+
 func (chain *DataTypeChain) IsKeySet() bool {
 	return chain.key != nil
 }

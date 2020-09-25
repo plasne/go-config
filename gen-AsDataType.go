@@ -164,6 +164,13 @@ func (chain *StringChain) Require() *StringChain {
 	return chain
 }
 
+func (chain *StringChain) RequireIf(clause bool) *StringChain {
+	if clause && chain.value == nil {
+		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+	}
+	return chain
+}
+
 func (chain *StringChain) IsKeySet() bool {
 	return chain.key != nil
 }
@@ -348,6 +355,13 @@ func (chain *IntChain) PrintMasked() *IntChain {
 
 func (chain *IntChain) Require() *IntChain {
 	if chain.value == nil {
+		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+	}
+	return chain
+}
+
+func (chain *IntChain) RequireIf(clause bool) *IntChain {
+	if clause && chain.value == nil {
 		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
 	}
 	return chain
@@ -542,6 +556,13 @@ func (chain *Float64Chain) Require() *Float64Chain {
 	return chain
 }
 
+func (chain *Float64Chain) RequireIf(clause bool) *Float64Chain {
+	if clause && chain.value == nil {
+		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+	}
+	return chain
+}
+
 func (chain *Float64Chain) IsKeySet() bool {
 	return chain.key != nil
 }
@@ -726,6 +747,13 @@ func (chain *BoolChain) PrintMasked() *BoolChain {
 
 func (chain *BoolChain) Require() *BoolChain {
 	if chain.value == nil {
+		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+	}
+	return chain
+}
+
+func (chain *BoolChain) RequireIf(clause bool) *BoolChain {
+	if clause && chain.value == nil {
 		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
 	}
 	return chain
@@ -920,6 +948,13 @@ func (chain *SliceChain) Require() *SliceChain {
 	return chain
 }
 
+func (chain *SliceChain) RequireIf(clause bool) *SliceChain {
+	if clause && chain.value == nil {
+		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+	}
+	return chain
+}
+
 func (chain *SliceChain) IsKeySet() bool {
 	return chain.key != nil
 }
@@ -1104,6 +1139,13 @@ func (chain *TimeDurationChain) PrintMasked() *TimeDurationChain {
 
 func (chain *TimeDurationChain) Require() *TimeDurationChain {
 	if chain.value == nil {
+		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+	}
+	return chain
+}
+
+func (chain *TimeDurationChain) RequireIf(clause bool) *TimeDurationChain {
+	if clause && chain.value == nil {
 		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
 	}
 	return chain
