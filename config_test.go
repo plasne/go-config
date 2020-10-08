@@ -365,6 +365,25 @@ func ExampleAsInt() {
 	//   TEST_VALUE = 333
 	//   TEST_04 = (set)
 	//   TEST_05 = (not-set)
+
+}
+
+func ExampleAsInt_enum() {
+	// NOTE: this tests the Print() functionality
+
+	enum := map[string]int{
+		"white":  int(White),
+		"red":    int(Red),
+		"yellow": int(Yellow),
+		"blue":   int(Blue),
+		"green":  int(Green),
+	}
+
+	AsInt().SetKey("TEST_01").TrySetByString("yellow").Lookup(enum).PrintLookup(enum)
+
+	// Output:
+	//   TEST_01 = yellow
+
 }
 
 func TestAsFloat(t *testing.T) {
@@ -1042,23 +1061,6 @@ func TestAsIntForEnum(t *testing.T) {
 		}
 	})
 
-}
-
-func ExampleAsIntForEnum() {
-	// NOTE: this tests the Print() functionality
-
-	enum := map[string]int{
-		"white":  int(White),
-		"red":    int(Red),
-		"yellow": int(Yellow),
-		"blue":   int(Blue),
-		"green":  int(Green),
-	}
-
-	AsInt().SetKey("TEST_01").TrySetByString("yellow").Lookup(enum).PrintLookup(enum)
-
-	// Output:
-	//   TEST_01 = yellow
 }
 
 func TestAsDuration(t *testing.T) {
