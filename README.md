@@ -206,35 +206,33 @@ The chain can be completed with any of these (but they do not continue the chain
 
 * __IsStringValueSet()__ - This returns true or false depending on whether the strval is set. This is most commonly used in Transform().
 
-## Startup()
+## Startup(ctx context.Context)
 
 The Startup() method does the following:
 
 1. Looks for a .env file and processes it if present.
 
-2. Resolves and prints the pre-configuration variables (GOCONFIG_AUTH_MODE, GOCONFIG_APPCONFIG, and GOCONFIG_CONFIG_KEYS).
+2. Resolves and prints the pre-configuration variables (GOCONFIG_CREDS, GOCONFIG_APPCONFIG, and GOCONFIG_APPCONFIG_KEYS).
 
-3. Loads environment variables from AppConfig if appropriate.
+3. Loads environment variables from App Config if appropriate.
 
 ## DotEnv
 
 <https://github.com/joho/godotenv> is already referenced in Startup(), so the module will read a .env file without any additional configuration. See the documentation at that link for more details.
 
-## AppConfig
+## Azure App Config
 
-To support AppConfig, you must specify the following environment variables:
+To support App Config, you must specify the following environment variables:
 
-* GOCONFIG_AUTH_MODE (default: env) - This can be set to "env" or "cli". Either way, this leverages the Azure Go SDK to authenticate the REST calls to AppConfig and/or Key Vault. When set to "env", you can authenticate via Client Credentials, Client Certificate, Resource Owner Password, or Azure Managed Service Identity depending on how you configure additional environment variables. When set to "cli", provided you have az-cli installed, it will authenticate using your current credentials (you may need to run "az login" first). You can get more details here: <https://github.com/Azure/azure-sdk-for-go#more-authentication-details>.
+* GOCONFIG_CREDS [default: "default"] - This is a comma-delimited list of credential types to support. This can be set to any of the following: "default" (`DefaultAzureCredential`), "env" (`EnvironmentCredential`), "mi" (`ManagedIdentityCredential`), or "cli" (`AzureCLICredential`).
 
-:information_source: Without setting GOCONFIG_AUTH_MODE or any other environment variables, the solution will attempt to use the local MSI endpoint.
+* GOCONFIG_APPCONFIG [REQUIRED] - You must specify the name or the full URL to your Azure App Config instance (ex. <https://pelasne-config.azconfig.io>).
 
-* GOCONFIG_APPCONFIG (REQUIRED) - You must specify the name or the full URL to your Azure AppConfig instance (ex. <https://pelasne-config.azconfig.io>).
-
-* GOCONFIG_CONFIG_KEYS (REQUIRED) - You must provide a comma-separated list of key filters. All key/value pairs that match the filters will be considered. Filters are applied from left to right and if a key already exists, it will be ignored. The "key" used will be last colon-separated section of the key. You can find out more about key filters here: <https://github.com/Azure/AppConfiguration/blob/main/docs/REST/kv.md#filtering>.
+* GOCONFIG_APPCONFIG_KEYS [REQUIRED] - You must provide a comma-separated list of key filters. All key/value pairs that match the filters will be considered. Filters are applied from left to right and if a key already exists, it will be ignored. The "key" used will be last colon-separated section of the key. You can find out more about key filters here: <https://github.com/Azure/AppConfiguration/blob/main/docs/REST/kv.md#filtering>.
 
 :warning: The account that is used for authentication must have the "App Configuration Data Reader" role even if it has "Contributor" or "Owner". Also note that it can take up to 30 minutes for this new role to take effect. You will get an HTTP 403 if this role is not provided.
 
-Consider the following example of values stored in AppConfig (exported from AppConfig)...
+Consider the following example of values stored in App Config (exported from App Config)...
 
 ```json
 {
@@ -254,21 +252,41 @@ All 3 values would be fetched and evaluated into 2 separate key/value pairs: CON
 
 You can make the keys as complicated as you like, for instance I often use "instance:service:environment:key".
 
-AppConfig supports storing Key Vault URLs for secrets, this is fully supported and the URL will be extracted and can work with the Resolve() method.
+App Config supports storing Key Vault URLs for secrets, this is fully supported and the URL will be extracted and can work with the Resolve() method.
 
-:warning: Pulling key/value pairs from AppConfig can take a while on a cold start. It is common that it might take 60-90 seconds.
+:warning: Pulling key/value pairs from App Config can take a while on a cold start. It is common that it might take 60-90 seconds.
 
-## Key Vault
+## Azure Key Vault
 
-To support Key Vault, you must specify GOCONFIG_AUTH_MODE as described above.
+To support Key Vault, you must specify GOCONFIG_CREDS (or leave as "default") as described above.
 
-If the Resolve() method is called and a legitimate Azure Key Vault Secret URL is currently the string value of the variable, the secret will be fetched and made the new string value.
+If the Resolve() method is called and a legitimate Azure Key Vault Secret URL is currently the string value of the variable, the secret will be fetched and set as the new string value.
+
+If you have several keys that need resolving, you could consider resolving those concurrently. For example...
+
+```go
+func init() {
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		MY_SECRET_1 = goconfig.AsString().TrySetByEnv("MY_SECRET_1").Resolve(ctx).Print().Value()
+		wg.Done()
+	}()
+	go func() {
+		MY_SECRET_2 = goconfig.AsString().TrySetByEnv("MY_SECRET_2").Resolve(ctx).Print().Value()
+		wg.Done()
+	}()
+	wg.Wait()
+}
+```
+
+:warning: Pulling key/value pairs from Key Vault can take a while on a cold start. It is common that it might take 60-90 seconds.
 
 ## Complete Sample
 
 Below is a sample of normal usage. Take particular note of a few things:
 
-* The startup will load a .env file (if there is one), display all pre-configuration settings, pull CONFIG_KEYS from APPCONFIG (if those are specified), and then set those as environment variables.
+* The startup will load a .env file (if there is one), display all pre-configuration settings, pull GOCONFIG_APPCONFIG_KEYS from App Config (if those are specified), and then set those as environment variables.
 
 * Setting Enums using AsInt is supported as shown below for the log levels.
 
@@ -343,9 +361,9 @@ func init() {
 Given a .env file like this...
 
 ```text
-AUTH_MODE=cli
-APPCONFIG=pelasne-config
-CONFIG_KEYS=override:*, sample:*
+GOCONFIG_CREDS=cli
+GOCONFIG_APPCONFIG=pelasne-config
+GOCONFIG_APPCONFIG_KEYS=override:*, sample:*
 CONCURRENCY=32
 STORAGE_ACCOUNT=pelasnediagdiag
 STORAGE_KEY=W...Q==
@@ -356,9 +374,9 @@ HOURS_TO_RETAIN=6
 
 ```text
 PRE-CONFIGURATION:
-  GOCONFIG_AUTH_MODE = cli
+  GOCONFIG_CREDS = cli
   GOCONFIG_APPCONFIG = "https://pelasne-config.azconfig.io"
-  GOCONFIG_CONFIG_KEYS = [override:* sample:*]
+  GOCONFIG_APPCONFIG_KEYS = [override:* sample:*]
 CONFIGURATION:
   LOG_LEVEL = info
   STORAGE_ACCOUNT = "pelasnediagdiag"
@@ -371,6 +389,8 @@ CONFIGURATION:
 ## Future
 
 There are some things I would like to expand in the future, including...
+
+* Consider switching to generics over generation.
 
 * Finish unit tests including mocks.
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -8,11 +9,13 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/joho/godotenv"
-
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
+	"github.com/joho/godotenv"
 )
 
 // Allows a single line pattern that would emulate (condition ? true : false).
@@ -23,22 +26,17 @@ func IfThenElse(condition bool, a interface{}, b interface{}) interface{} {
 	return b
 }
 
-type authMode int
-
-const (
-	AuthMode_Env authMode = iota
-	AuthMode_Cli
-)
-
 type preconfig struct {
-	GOCONFIG_AUTH_MODE   authMode
-	GOCONFIG_APPCONFIG   string
-	GOCONFIG_CONFIG_KEYS []string
+	GOCONFIG_CREDS          []string
+	GOCONFIG_APPCONFIG      string
+	GOCONFIG_APPCONFIG_KEYS []string
 }
 
 var config preconfig
-
-var SharedHttpTransport *http.Transport
+var tokenLock sync.Mutex
+var tokens map[string]azcore.AccessToken = make(map[string]azcore.AccessToken)
+var credential *azidentity.ChainedTokenCredential
+var sharedHttpTransport *http.Transport
 
 func createSharedHttpTransport() *http.Transport {
 	defaultTransport := http.DefaultTransport.(*http.Transport)
@@ -56,29 +54,77 @@ func createSharedHttpTransport() *http.Transport {
 	}
 }
 
-func ApplyAuthorizer(client *autorest.Client, resource string) (err error) {
-
-	// select
-	var authorizer autorest.Authorizer
-	switch config.GOCONFIG_AUTH_MODE {
-	case AuthMode_Env:
-		authorizer, err = auth.NewAuthorizerFromEnvironmentWithResource(resource)
-	case AuthMode_Cli:
-		authorizer, err = auth.NewAuthorizerFromCLIWithResource(resource)
-	default:
-		err = fmt.Errorf("there is no authorizer specified.")
-		return
+func getCredential() (azcore.TokenCredential, error) {
+	// check cache
+	if credential != nil {
+		return credential, nil
 	}
 
-	// check for errors
+	// create a list of creds
+	var creds []azcore.TokenCredential
+	for _, cred := range config.GOCONFIG_CREDS {
+		switch strings.ToLower(cred) {
+		case "env":
+			env, err := azidentity.NewEnvironmentCredential(nil)
+			if err == nil {
+				creds = append(creds, env)
+			}
+		case "mi":
+			mi, err := azidentity.NewManagedIdentityCredential(nil)
+			if err == nil {
+				creds = append(creds, mi)
+			}
+		case "cli":
+			cli, err := azidentity.NewAzureCLICredential(nil)
+			if err == nil {
+				creds = append(creds, cli)
+			}
+		case "default":
+			dft, err := azidentity.NewDefaultAzureCredential(nil)
+			if err == nil {
+				creds = append(creds, dft)
+			}
+		default:
+			return nil, fmt.Errorf("GOCONFIG_CREDS contained an unsupported value: %s", cred)
+		}
+	}
+
+	// create the chain
+	// TODO: reimplement chain with mi having a timeout
+	chain, err := azidentity.NewChainedTokenCredential(creds, nil)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	// assign
-	client.Authorizer = authorizer
+	credential = chain
+	return chain, nil
+}
 
-	return
+func GetAccessToken(ctx context.Context, scope string) (string, error) {
+	tokenLock.Lock()
+	defer tokenLock.Unlock()
+
+	// check cache
+	token, ok := tokens[scope]
+	if ok && time.Until(token.ExpiresOn).Minutes() >= 5 {
+		return token.Token, nil
+	}
+
+	// get credential
+	cred, err := getCredential()
+	if err != nil {
+		return "", err
+	}
+
+	// get token
+	opt := policy.TokenRequestOptions{Scopes: []string{scope}}
+	accessToken, err := cred.GetToken(ctx, opt)
+	if err != nil {
+		return "", err
+	}
+
+	tokens[scope] = accessToken
+	return accessToken.Token, nil
 }
 
 func tryExtractUrlForKeyvaultFromAppConfigEntry(value string) string {
@@ -105,7 +151,7 @@ func tryExtractUrlForKeyvaultFromAppConfigEntry(value string) string {
 
 }
 
-func load(filters []string, useFullyQualifiedName bool) (values map[string]string, err error) {
+func load(ctx context.Context, filters []string, useFullyQualifiedName bool) (values map[string]string, err error) {
 	values = make(map[string]string)
 
 	// make sure there is something to load
@@ -115,18 +161,21 @@ func load(filters []string, useFullyQualifiedName bool) (values map[string]strin
 
 	// make sure APPCONFIG is supplied so the load can happen
 	if len(config.GOCONFIG_APPCONFIG) < 1 {
-		err = fmt.Errorf("GOCONFIG_APPCONFIG was REQUIRED but not set.")
+		err = fmt.Errorf("GOCONFIG_APPCONFIG was REQUIRED but not set")
 		return
 	}
 
 	// request each filter
+	// TODO: improve performance by fetching these concurrently
 	for _, filter := range filters {
-
-		// create/authorize the client
+		// create the client
 		client := &autorest.Client{
-			Sender: &http.Client{Transport: SharedHttpTransport},
+			Sender: &http.Client{Transport: sharedHttpTransport},
 		}
-		err = ApplyAuthorizer(client, config.GOCONFIG_APPCONFIG)
+
+		// get the token
+		var token string
+		token, err = GetAccessToken(ctx, "https://azconfig.io")
 		if err != nil {
 			return
 		}
@@ -138,14 +187,15 @@ func load(filters []string, useFullyQualifiedName bool) (values map[string]strin
 			autorest.AsGet(),
 			autorest.WithBaseURL(config.GOCONFIG_APPCONFIG),
 			autorest.WithPath("/kv"),
-			autorest.WithQueryParameters(q))
+			autorest.WithQueryParameters(q),
+			autorest.WithBearerAuthorization(token))
 		if err != nil {
 			return
 		}
 
 		// send the request
 		var resp *http.Response
-		resp, err = autorest.SendWithSender(client, req)
+		resp, err = autorest.SendWithSender(client, req.WithContext(ctx))
 		if err != nil {
 			return
 		}
@@ -191,23 +241,22 @@ func load(filters []string, useFullyQualifiedName bool) (values map[string]strin
 	return
 }
 
-func Load(filters []string) (values map[string]string, err error) {
-	return load(filters, false)
+func Load(ctx context.Context, filters []string) (values map[string]string, err error) {
+	return load(ctx, filters, false)
 }
 
-func LoadFullyQualified(filters []string) (values map[string]string, err error) {
-	return load(filters, true)
+func LoadFullyQualified(ctx context.Context, filters []string) (values map[string]string, err error) {
+	return load(ctx, filters, true)
 }
 
-func Apply(filters []string) (err error) {
-
+func Apply(ctx context.Context, filters []string) (err error) {
 	// make sure there is something to apply
 	if len(filters) < 1 {
 		return
 	}
 
 	// load the values
-	values, err := load(filters, false)
+	values, err := load(ctx, filters, false)
 	if err != nil {
 		return
 	}
@@ -222,7 +271,7 @@ func Apply(filters []string) (err error) {
 	return
 }
 
-func resolve(url string) (val string, err error) {
+func resolve(ctx context.Context, url string) (val string, err error) {
 	val = url
 
 	// make sure this is a valid URL
@@ -231,31 +280,33 @@ func resolve(url string) (val string, err error) {
 		return
 	}
 
-	// TODO: can context apply to autorest somehow?
-
-	// create/authorize the client
+	// create the client
 	client := &autorest.Client{
-		Sender: &http.Client{Transport: SharedHttpTransport},
+		Sender: &http.Client{Transport: sharedHttpTransport},
 	}
-	err = ApplyAuthorizer(client, "https://vault.azure.net")
+
+	// get the token
+	var token string
+	token, err = GetAccessToken(ctx, "https://vault.azure.net")
 	if err != nil {
 		return
 	}
 
 	// setup the request
-	q := map[string]interface{}{"api-version": "7.0"}
+	q := map[string]interface{}{"api-version": "7.4"}
 	var req *http.Request
 	req, err = autorest.Prepare(&http.Request{},
 		autorest.AsGet(),
 		autorest.WithBaseURL(url),
-		autorest.WithQueryParameters(q))
+		autorest.WithQueryParameters(q),
+		autorest.WithBearerAuthorization(token))
 	if err != nil {
 		return
 	}
 
 	// send the request
 	var resp *http.Response
-	resp, err = autorest.SendWithSender(client, req)
+	resp, err = autorest.SendWithSender(client, req.WithContext(ctx))
 	if err != nil {
 		return
 	}
@@ -285,21 +336,6 @@ func resolve(url string) (val string, err error) {
 	return
 }
 
-func ResolveAll(list []*StringChain) *sync.WaitGroup {
-	wg := new(sync.WaitGroup)
-	wg.Add(len(list))
-
-	// resolve everything in parallel
-	for _, chain := range list {
-		go func(c *StringChain) {
-			defer wg.Done()
-			c.Resolve()
-		}(chain)
-	}
-
-	return wg
-}
-
 func areSlicesEqual(a []string, b []string) bool {
 	if len(a) == len(b) {
 
@@ -321,11 +357,11 @@ func areSlicesEqual(a []string, b []string) bool {
 	}
 }
 
-func Startup() (err error) {
+func Startup(ctx context.Context) (err error) {
 
 	// create a shared http transport
-	if SharedHttpTransport == nil {
-		SharedHttpTransport = createSharedHttpTransport()
+	if sharedHttpTransport == nil {
+		sharedHttpTransport = createSharedHttpTransport()
 	}
 
 	// load from dotenv
@@ -341,11 +377,7 @@ func Startup() (err error) {
 
 	// do pre-configuration
 	fmt.Println("PRE-CONFIGURATION:")
-	table := map[string]int{
-		"env": int(AuthMode_Env),
-		"cli": int(AuthMode_Cli),
-	}
-	config.GOCONFIG_AUTH_MODE = authMode(AsInt().TrySetByEnv("GOCONFIG_AUTH_MODE").Lookup(table).Clamp(0, 1).DefaultTo(0).PrintLookup(table).Value())
+	config.GOCONFIG_CREDS = AsSlice().TrySetByEnv("GOCONFIG_CREDS").DefaultTo([]string{"default"}).Print().Value()
 	config.GOCONFIG_APPCONFIG = AsString().TrySetByEnv("GOCONFIG_APPCONFIG").Transform(func(chain *StringChain) {
 		if chain.IsValueSet() {
 			val := strings.ToLower(chain.Value())
@@ -361,11 +393,11 @@ func Startup() (err error) {
 			chain.SetValue(val)
 		}
 	}).Print().Value()
-	config.GOCONFIG_CONFIG_KEYS = AsSlice().TrySetByEnv("GOCONFIG_CONFIG_KEYS").Print().Value()
+	config.GOCONFIG_APPCONFIG_KEYS = AsSlice().TrySetByEnv("GOCONFIG_APPCONFIG_KEYS").Print().Value()
 
 	// load from appconfig
-	if len(config.GOCONFIG_APPCONFIG) > 0 && len(config.GOCONFIG_CONFIG_KEYS) > 0 {
-		err = Apply(config.GOCONFIG_CONFIG_KEYS)
+	if len(config.GOCONFIG_APPCONFIG) > 0 && len(config.GOCONFIG_APPCONFIG_KEYS) > 0 {
+		err = Apply(ctx, config.GOCONFIG_APPCONFIG_KEYS)
 		if err != nil {
 			return
 		}
