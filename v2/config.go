@@ -33,9 +33,10 @@ type preconfig struct {
 }
 
 var config preconfig
+var credentialLock sync.Mutex
+var credential *azidentity.ChainedTokenCredential
 var tokenLock sync.Mutex
 var tokens map[string]azcore.AccessToken = make(map[string]azcore.AccessToken)
-var credential *azidentity.ChainedTokenCredential
 var sharedHttpTransport *http.Transport
 
 func createSharedHttpTransport() *http.Transport {
@@ -54,7 +55,10 @@ func createSharedHttpTransport() *http.Transport {
 	}
 }
 
-func getCredential() (azcore.TokenCredential, error) {
+func GetCredential() (azcore.TokenCredential, error) {
+	credentialLock.Lock()
+	defer credentialLock.Unlock()
+
 	// check cache
 	if credential != nil {
 		return credential, nil
@@ -111,7 +115,7 @@ func GetAccessToken(ctx context.Context, scope string) (string, error) {
 	}
 
 	// get credential
-	cred, err := getCredential()
+	cred, err := GetCredential()
 	if err != nil {
 		return "", err
 	}
