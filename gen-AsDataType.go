@@ -5,11 +5,14 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 )
+
+//go:generate go run github.com/cheekybits/genny -in=$GOFILE -out=gen-$GOFILE gen "String=string,int,float64,bool,Slice,time.Duration"
 
 type StringChain struct {
 	IChain
@@ -132,9 +135,9 @@ func (chain *StringChain) EnsureOneOf(options ...string) *StringChain {
 	return chain
 }
 
-func (chain *StringChain) Resolve() *StringChain {
+func (chain *StringChain) Resolve(ctx context.Context) *StringChain {
 	if chain.strval != nil {
-		val, err := resolve(*chain.strval)
+		val, err := resolve(ctx, *chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -159,14 +162,14 @@ func (chain *StringChain) PrintMasked() *StringChain {
 
 func (chain *StringChain) Require() *StringChain {
 	if chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
 
 func (chain *StringChain) RequireIf(clause bool) *StringChain {
 	if clause && chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
@@ -206,6 +209,8 @@ func (chain *StringChain) StringValue() string {
 		return *chain.strval
 	}
 }
+
+//go:generate go run github.com/cheekybits/genny -in=$GOFILE -out=gen-$GOFILE gen "Int=string,int,float64,bool,Slice,time.Duration"
 
 type IntChain struct {
 	IChain
@@ -328,9 +333,9 @@ func (chain *IntChain) EnsureOneOf(options ...string) *IntChain {
 	return chain
 }
 
-func (chain *IntChain) Resolve() *IntChain {
+func (chain *IntChain) Resolve(ctx context.Context) *IntChain {
 	if chain.strval != nil {
-		val, err := resolve(*chain.strval)
+		val, err := resolve(ctx, *chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -355,14 +360,14 @@ func (chain *IntChain) PrintMasked() *IntChain {
 
 func (chain *IntChain) Require() *IntChain {
 	if chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
 
 func (chain *IntChain) RequireIf(clause bool) *IntChain {
 	if clause && chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
@@ -402,6 +407,8 @@ func (chain *IntChain) StringValue() string {
 		return *chain.strval
 	}
 }
+
+//go:generate go run github.com/cheekybits/genny -in=$GOFILE -out=gen-$GOFILE gen "Float64=string,int,float64,bool,Slice,time.Duration"
 
 type Float64Chain struct {
 	IChain
@@ -524,9 +531,9 @@ func (chain *Float64Chain) EnsureOneOf(options ...string) *Float64Chain {
 	return chain
 }
 
-func (chain *Float64Chain) Resolve() *Float64Chain {
+func (chain *Float64Chain) Resolve(ctx context.Context) *Float64Chain {
 	if chain.strval != nil {
-		val, err := resolve(*chain.strval)
+		val, err := resolve(ctx, *chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -551,14 +558,14 @@ func (chain *Float64Chain) PrintMasked() *Float64Chain {
 
 func (chain *Float64Chain) Require() *Float64Chain {
 	if chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
 
 func (chain *Float64Chain) RequireIf(clause bool) *Float64Chain {
 	if clause && chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
@@ -598,6 +605,8 @@ func (chain *Float64Chain) StringValue() string {
 		return *chain.strval
 	}
 }
+
+//go:generate go run github.com/cheekybits/genny -in=$GOFILE -out=gen-$GOFILE gen "Bool=string,int,float64,bool,Slice,time.Duration"
 
 type BoolChain struct {
 	IChain
@@ -720,9 +729,9 @@ func (chain *BoolChain) EnsureOneOf(options ...string) *BoolChain {
 	return chain
 }
 
-func (chain *BoolChain) Resolve() *BoolChain {
+func (chain *BoolChain) Resolve(ctx context.Context) *BoolChain {
 	if chain.strval != nil {
-		val, err := resolve(*chain.strval)
+		val, err := resolve(ctx, *chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -747,14 +756,14 @@ func (chain *BoolChain) PrintMasked() *BoolChain {
 
 func (chain *BoolChain) Require() *BoolChain {
 	if chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
 
 func (chain *BoolChain) RequireIf(clause bool) *BoolChain {
 	if clause && chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
@@ -794,6 +803,8 @@ func (chain *BoolChain) StringValue() string {
 		return *chain.strval
 	}
 }
+
+//go:generate go run github.com/cheekybits/genny -in=$GOFILE -out=gen-$GOFILE gen "Slice=string,int,float64,bool,Slice,time.Duration"
 
 type SliceChain struct {
 	IChain
@@ -916,9 +927,9 @@ func (chain *SliceChain) EnsureOneOf(options ...string) *SliceChain {
 	return chain
 }
 
-func (chain *SliceChain) Resolve() *SliceChain {
+func (chain *SliceChain) Resolve(ctx context.Context) *SliceChain {
 	if chain.strval != nil {
-		val, err := resolve(*chain.strval)
+		val, err := resolve(ctx, *chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -943,14 +954,14 @@ func (chain *SliceChain) PrintMasked() *SliceChain {
 
 func (chain *SliceChain) Require() *SliceChain {
 	if chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
 
 func (chain *SliceChain) RequireIf(clause bool) *SliceChain {
 	if clause && chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
@@ -990,6 +1001,8 @@ func (chain *SliceChain) StringValue() string {
 		return *chain.strval
 	}
 }
+
+//go:generate go run github.com/cheekybits/genny -in=$GOFILE -out=gen-$GOFILE gen "TimeDuration=string,int,float64,bool,Slice,time.Duration"
 
 type TimeDurationChain struct {
 	IChain
@@ -1112,9 +1125,9 @@ func (chain *TimeDurationChain) EnsureOneOf(options ...string) *TimeDurationChai
 	return chain
 }
 
-func (chain *TimeDurationChain) Resolve() *TimeDurationChain {
+func (chain *TimeDurationChain) Resolve(ctx context.Context) *TimeDurationChain {
 	if chain.strval != nil {
-		val, err := resolve(*chain.strval)
+		val, err := resolve(ctx, *chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -1139,14 +1152,14 @@ func (chain *TimeDurationChain) PrintMasked() *TimeDurationChain {
 
 func (chain *TimeDurationChain) Require() *TimeDurationChain {
 	if chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
 
 func (chain *TimeDurationChain) RequireIf(clause bool) *TimeDurationChain {
 	if clause && chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }

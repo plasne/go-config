@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -8,7 +9,7 @@ import (
 	"github.com/cheekybits/genny/generic"
 )
 
-//go:generate genny -in=$GOFILE -out=gen-$GOFILE gen "DataType=string,int,float64,bool,Slice,time.Duration"
+//go:generate go run github.com/cheekybits/genny -in=$GOFILE -out=gen-$GOFILE gen "DataType=string,int,float64,bool,Slice,time.Duration"
 
 type DataType generic.Type
 
@@ -133,9 +134,9 @@ func (chain *DataTypeChain) EnsureOneOf(options ...string) *DataTypeChain {
 	return chain
 }
 
-func (chain *DataTypeChain) Resolve() *DataTypeChain {
+func (chain *DataTypeChain) Resolve(ctx context.Context) *DataTypeChain {
 	if chain.strval != nil {
-		val, err := resolve(*chain.strval)
+		val, err := resolve(ctx, *chain.strval)
 		if err != nil {
 			panic(err)
 		}
@@ -160,14 +161,14 @@ func (chain *DataTypeChain) PrintMasked() *DataTypeChain {
 
 func (chain *DataTypeChain) Require() *DataTypeChain {
 	if chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
 
 func (chain *DataTypeChain) RequireIf(clause bool) *DataTypeChain {
 	if clause && chain.value == nil {
-		panic(fmt.Errorf("  %s was REQUIRED but not provided.", chain.Key()))
+		panic(fmt.Errorf("  %s was REQUIRED but not provided", chain.Key()))
 	}
 	return chain
 }
