@@ -224,7 +224,9 @@ The Startup() method does the following:
 
 To support AppConfig, you must specify the following environment variables:
 
-* GOCONFIG_AUTH_MODE (default: env) - This can be set to "env" or "cli". Either way, this leverages the Azure Go SDK to authenticate the REST calls to AppConfig and/or Key Vault. When set to "env", you can authenticate via Client Credentials, Client Certificate, Resource Owner Password, or Azure Managed Service Identity depending on how you configure additional environment variables. When set to "cli", provided you have az-cli installed, it will authenticate using your current credentials (you may need to run "az login" first). You can get more details here: <https://github.com/Azure/azure-sdk-for-go#more-authentication-details>.
+* GOCONFIG_CREDS (default: "default") - This is a comma-delimited list of credential types to support. This can be set to any of the following: "default" (`DefaultAzureCredential`), "env" (`EnvironmentCredential`), "mi" (`ManagedIdentityCredential`), or "cli" (`AzureCLICredential`). You can use a
+
+This can be set to "env" or "cli". Either way, this leverages the Azure Go SDK to authenticate the REST calls to AppConfig and/or Key Vault. When set to "env", you can authenticate via Client Credentials, Client Certificate, Resource Owner Password, or Azure Managed Service Identity depending on how you configure additional environment variables. When set to "cli", provided you have az-cli installed, it will authenticate using your current credentials (you may need to run "az login" first). You can get more details here: <https://github.com/Azure/azure-sdk-for-go#more-authentication-details>.
 
 :information_source: Without setting GOCONFIG_AUTH_MODE or any other environment variables, the solution will attempt to use the local MSI endpoint.
 

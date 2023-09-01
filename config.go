@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -33,7 +34,7 @@ type preconfig struct {
 
 var config preconfig
 var tokenLock sync.Mutex
-var tokens map[string]string = make(map[string]string)
+var tokens map[string]azcore.AccessToken = make(map[string]azcore.AccessToken)
 var credential *azidentity.ChainedTokenCredential
 var sharedHttpTransport *http.Transport
 
@@ -105,8 +106,8 @@ func GetAccessToken(ctx context.Context, scope string) (string, error) {
 
 	// check cache
 	token, ok := tokens[scope]
-	if ok {
-		return token, nil
+	if ok && time.Until(token.ExpiresOn).Minutes() >= 5 {
+		return token.Token, nil
 	}
 
 	// get credential
@@ -122,7 +123,7 @@ func GetAccessToken(ctx context.Context, scope string) (string, error) {
 		return "", err
 	}
 
-	tokens[scope] = accessToken.Token
+	tokens[scope] = accessToken
 	return accessToken.Token, nil
 }
 
