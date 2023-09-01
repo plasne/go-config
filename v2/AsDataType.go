@@ -153,7 +153,7 @@ func (chain *DataTypeChain) Print() *DataTypeChain {
 func (chain *DataTypeChain) PrintMasked() *DataTypeChain {
 	if chain.value != nil {
 		if v := strings.ToLower(*chain.strval); strings.HasPrefix(v, "https://") && strings.Contains(v, ".vault.azure.net") {
-			return chain.Print()
+			fmt.Printf("  %s = %v\n", chain.Key(), chain.strval)
 		} else {
 			fmt.Printf("  %s = (set)\n", chain.Key())
 		}

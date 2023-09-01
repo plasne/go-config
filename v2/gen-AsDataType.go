@@ -154,7 +154,7 @@ func (chain *StringChain) Print() *StringChain {
 func (chain *StringChain) PrintMasked() *StringChain {
 	if chain.value != nil {
 		if v := strings.ToLower(*chain.strval); strings.HasPrefix(v, "https://") && strings.Contains(v, ".vault.azure.net") {
-			return chain.Print()
+			fmt.Printf("  %s = %v\n", chain.Key(), chain.strval)
 		} else {
 			fmt.Printf("  %s = (set)\n", chain.Key())
 		}
@@ -356,7 +356,7 @@ func (chain *IntChain) Print() *IntChain {
 func (chain *IntChain) PrintMasked() *IntChain {
 	if chain.value != nil {
 		if v := strings.ToLower(*chain.strval); strings.HasPrefix(v, "https://") && strings.Contains(v, ".vault.azure.net") {
-			return chain.Print()
+			fmt.Printf("  %s = %v\n", chain.Key(), chain.strval)
 		} else {
 			fmt.Printf("  %s = (set)\n", chain.Key())
 		}
@@ -558,7 +558,7 @@ func (chain *Float64Chain) Print() *Float64Chain {
 func (chain *Float64Chain) PrintMasked() *Float64Chain {
 	if chain.value != nil {
 		if v := strings.ToLower(*chain.strval); strings.HasPrefix(v, "https://") && strings.Contains(v, ".vault.azure.net") {
-			return chain.Print()
+			fmt.Printf("  %s = %v\n", chain.Key(), chain.strval)
 		} else {
 			fmt.Printf("  %s = (set)\n", chain.Key())
 		}
@@ -760,7 +760,7 @@ func (chain *BoolChain) Print() *BoolChain {
 func (chain *BoolChain) PrintMasked() *BoolChain {
 	if chain.value != nil {
 		if v := strings.ToLower(*chain.strval); strings.HasPrefix(v, "https://") && strings.Contains(v, ".vault.azure.net") {
-			return chain.Print()
+			fmt.Printf("  %s = %v\n", chain.Key(), chain.strval)
 		} else {
 			fmt.Printf("  %s = (set)\n", chain.Key())
 		}
@@ -962,7 +962,7 @@ func (chain *SliceChain) Print() *SliceChain {
 func (chain *SliceChain) PrintMasked() *SliceChain {
 	if chain.value != nil {
 		if v := strings.ToLower(*chain.strval); strings.HasPrefix(v, "https://") && strings.Contains(v, ".vault.azure.net") {
-			return chain.Print()
+			fmt.Printf("  %s = %v\n", chain.Key(), chain.strval)
 		} else {
 			fmt.Printf("  %s = (set)\n", chain.Key())
 		}
@@ -1164,7 +1164,7 @@ func (chain *TimeDurationChain) Print() *TimeDurationChain {
 func (chain *TimeDurationChain) PrintMasked() *TimeDurationChain {
 	if chain.value != nil {
 		if v := strings.ToLower(*chain.strval); strings.HasPrefix(v, "https://") && strings.Contains(v, ".vault.azure.net") {
-			return chain.Print()
+			fmt.Printf("  %s = %v\n", chain.Key(), chain.strval)
 		} else {
 			fmt.Printf("  %s = (set)\n", chain.Key())
 		}
